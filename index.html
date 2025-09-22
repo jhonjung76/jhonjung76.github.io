@@ -190,27 +190,30 @@
             flex-wrap: wrap;
             margin-bottom: 20px;
             gap: 20px;
+            padding: 10px; /* 가시성 확보 */
             font-size: 1.5em;
             font-weight: bold;
         }
 
+        .horizontal-question {
+            /* 가로형 문제 스타일 */
+        }
+        
         .vertical-problem {
             display: flex;
             flex-direction: column;
-            font-family: monospace;
+            align-items: flex-end; /* 우측 정렬 */
+            font-family: 'Courier New', Courier, monospace;
             line-height: 1.2;
-            min-width: 150px;
-            text-align: right;
-            border: 2px solid #ddd;
-            border-radius: 10px;
+            min-width: 120px;
             padding: 10px;
-            background-color: #fff;
+            border: 2px solid #ddd; /* 가시성 확보 */
+            background-color: #f8f8f8; /* 가시성 확보 */
+            border-radius: 10px;
         }
 
         .vertical-row {
-            display: flex;
-            justify-content: flex-end;
-            align-items: baseline;
+            padding: 2px 0;
         }
         
         .vertical-op {
