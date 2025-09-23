@@ -197,6 +197,17 @@
             gap: 15px;
             margin-bottom: 20px;
         }
+        
+        /* 세로형 레이아웃을 위한 스타일 추가 */
+        .choices.vertical-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .choices.vertical-layout .choice-btn {
+            width: 100%;
+        }
 
         .choice-btn {
             background: white;
@@ -541,6 +552,13 @@
                     <option value="30">30문제</option>
                 </select>
             </div>
+            <div class="input-group">
+                <label for="layoutType">문제 보기 형식:</label>
+                <select id="layoutType">
+                    <option value="horizontal">가로형</option>
+                    <option value="vertical">세로형</option>
+                </select>
+            </div>
             <div class="setup-controls">
                 <button onclick="showMainMenu()" class="back-btn">뒤로 가기</button>
                 <button onclick="beginQuiz()" class="start-quiz-btn">🎮 퀴즈 시작하기</button>
@@ -872,11 +890,20 @@
             const difficulty = document.getElementById('difficulty').value;
             const problemType = document.getElementById('problemType').value;
             const grade = parseInt(document.getElementById('grade').value);
+            const layoutType = document.getElementById('layoutType').value; // 새로운 레이아웃 타입 가져오기
             
             questions = [];
             wrongAnswers = [];
             for (let i = 0; i < problemCount; i++) {
                 questions.push(createProblem(problemType, grade, difficulty));
+            }
+
+            // 선택한 레이아웃 타입에 따라 CSS 클래스 적용
+            const choicesContainer = document.getElementById('choicesContainer');
+            if (layoutType === 'vertical') {
+                choicesContainer.classList.add('vertical-layout');
+            } else {
+                choicesContainer.classList.remove('vertical-layout');
             }
             
             currentQuestionIndex = 0;
