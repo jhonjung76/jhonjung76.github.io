@@ -460,7 +460,7 @@
         <h1 class="title">🎯 수학 퀴즈 앱</h1>
         
         <div id="mainMenu" class="menu quiz-section active">
-            <button onclick="startQuiz()">🎮 퀴즈 시작</button>
+            <button onclick="showQuizSetup()">🎮 퀴즈 시작</button>
             <button onclick="showRecords()">📋 기록 보기</button>
         </div>
 
@@ -855,6 +855,10 @@
         }
         
         // 주요 기능 함수들
+        function showQuizSetup() {
+            showSection('quizSetup');
+        }
+
         function beginQuiz() {
             const userName = document.getElementById('userName').value;
             if (!userName) {
