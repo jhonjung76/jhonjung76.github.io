@@ -71,6 +71,14 @@
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .question-display-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
         }
 
         .question-text {
@@ -102,6 +110,29 @@
 
         .wrong {
             color: #dc3545;
+        }
+        
+        /* 풀이 설명 스타일 */
+        .explanation-box {
+            background-color: #e9eef6;
+            border-left: 5px solid #5a2e9b;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            border-radius: 8px;
+            display: none; /* 초기에는 숨김 */
+            font-size: 1em;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .explanation-box h4 {
+            margin-bottom: 10px;
+            color: #4a257e;
+        }
+        
+        .explanation-step {
+            margin-bottom: 8px;
         }
 
         .score-display {
@@ -151,6 +182,42 @@
             font-size: 1em;
             margin-bottom: 10px;
         }
+
+        .select-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .select-group {
+            text-align: left;
+        }
+
+        .vertical-problem {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2em;
+            line-height: 1.2;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            width: fit-content;
+        }
+
+        .vertical-line {
+            border-bottom: 2px solid #333;
+            width: 100%;
+        }
+
+        .vertical-row {
+            padding-right: 5px;
+        }
+
+        .operator {
+            display: inline-block;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -161,9 +228,48 @@
             <h2 class="section-title">수학 퀴즈에 도전해보세요!</h2>
             <label for="userName" style="font-weight: bold; margin-bottom: 5px; display: block;">퀴즈를 시작하기 전에 이름을 입력해주세요.</label>
             <input type="text" id="userName" placeholder="이름을 입력하세요" class="input-field">
-            <button class="menu-button" onclick="beginQuiz()">퀴즈 시작</button>
+            <button class="menu-button" onclick="goToSettings()">퀴즈 시작</button>
             <button class="menu-button" onclick="showRecords()">기록 보기</button>
             <button class="menu-button" onclick="showAbout()">앱 정보</button>
+        </div>
+
+        <div class="quiz-section" id="quizSettingsView">
+            <h2 id="settingsTitle" class="section-title"></h2>
+            <div class="select-container">
+                <div class="select-group">
+                    <label for="problemType">문제 유형 선택:</label>
+                    <select id="problemType" class="input-field">
+                        <option value="전체">전체</option>
+                        <option value="덧셈">덧셈</option>
+                        <option value="뺄셈">뺄셈</option>
+                        <option value="곱셈">곱셈</option>
+                        <option value="나눗셈">나눗셈</option>
+                        <option value="혼합">혼합</option>
+                    </select>
+                </div>
+                <div class="select-group">
+                    <label for="difficulty">난이도 선택:</label>
+                    <select id="difficulty" class="input-field">
+                        <option value="F">F (아주 쉬운)</option>
+                        <option value="E">E (쉬움)</option>
+                        <option value="D">D (보통)</option>
+                        <option value="C">C (조금 어려움)</option>
+                        <option value="B">B (어려움)</option>
+                        <option value="A">A (매우 어려움)</option>
+                        <option value="S">S (최상급)</option>
+                    </select>
+                </div>
+                <div class="select-group">
+                    <label for="questionCount">문제 개수 선택:</label>
+                    <select id="questionCount" class="input-field">
+                        <option value="10">10개</option>
+                        <option value="20">20개</option>
+                        <option value="30">30개</option>
+                    </select>
+                </div>
+            </div>
+            <button class="menu-button" onclick="beginQuiz()">퀴즈 시작</button>
+            <button class="menu-button" onclick="showMainMenu()">메인 메뉴로</button>
         </div>
 
         <div class="quiz-section" id="quizView">
@@ -172,10 +278,15 @@
                 <div class="progress-bar" id="progressBar"></div>
             </div>
             <div class="question-box">
-                <p id="questionText" class="question-text"></p>
+                <div class="question-display-container">
+                    <p id="questionText" class="question-text"></p>
+                    <div id="verticalProblem" class="vertical-problem"></div>
+                </div>
+                
                 <input type="number" id="answerInput" class="answer-input" placeholder="정답을 입력하세요">
                 <p id="feedback" class="feedback"></p>
-                <button class="menu-button" onclick="checkAnswer()">정답 확인</button>
+                <div id="explanationBox" class="explanation-box"></div> <button id="checkAnswerBtn" class="menu-button" onclick="checkAnswer()">정답 확인</button>
+                <button id="nextQuestionBtn" class="menu-button" onclick="goToNextQuestion()" style="display: none;">다음 문제</button>
             </div>
             <div id="quizScore" class="score-display">점수: 0</div>
             <button class="menu-button" onclick="showMainMenu()">메인 메뉴로</button>
@@ -203,125 +314,211 @@
         let quizQuestions = [];
         let userName = '';
         const records = JSON.parse(localStorage.getItem('quizRecords')) || [];
-        const questionsPerQuiz = 10;
+        let questionsPerQuiz = 10;
         let startTime;
 
-        const allProblems = [
-            { type: '덧셈', text: '100 + 50', answer: 150, grade: 'E' },
-            { type: '덧셈', text: '75 + 25', answer: 100, grade: 'E' },
-            { type: '덧셈', text: '35 + 15', answer: 50, grade: 'E' },
-            { type: '덧셈', text: '42 + 58', answer: 100, grade: 'E' },
-            { type: '덧셈', text: '23 + 67', answer: 90, grade: 'E' },
-            { type: '뺄셈', text: '200 - 80', answer: 120, grade: 'E' },
-            { type: '뺄셈', text: '90 - 45', answer: 45, grade: 'E' },
-            { type: '뺄셈', text: '120 - 70', answer: 50, grade: 'E' },
-            { type: '뺄셈', text: '78 - 34', answer: 44, grade: 'E' },
-            { type: '뺄셈', text: '56 - 19', answer: 37, grade: 'E' },
-            { type: '곱셈', text: '12 * 5', answer: 60, grade: 'E' },
-            { type: '곱셈', text: '8 * 7', answer: 56, grade: 'E' },
-            { type: '곱셈', text: '6 * 9', answer: 54, grade: 'E' },
-            { type: '곱셈', text: '11 * 11', answer: 121, grade: 'E' },
-            { type: '곱셈', text: '15 * 3', answer: 45, grade: 'E' },
-            { type: '나눗셈', text: '100 / 10', answer: 10, grade: 'E' },
-            { type: '나눗셈', text: '81 / 9', answer: 9, grade: 'E' },
-            { type: '나눗셈', text: '49 / 7', answer: 7, grade: 'E' },
-            { type: '나눗셈', text: '64 / 8', answer: 8, grade: 'E' },
-            { type: '나눗셈', text: '144 / 12', answer: 12, grade: 'E' },
-            { type: '혼합', text: '10 + 5 * 2', answer: 20, grade: 'E' },
-            { type: '혼합', text: '20 / 4 + 3', answer: 8, grade: 'E' },
-            { type: '혼합', text: '7 * 6 - 2', answer: 40, grade: 'E' },
-            { type: '혼합', text: '12 - 3 * 2', answer: 6, grade: 'E' },
-            { type: '혼합', text: '30 / 5 + 4', answer: 10, grade: 'E' },
-            // Grade A 문제
-            { type: '덧셈', text: '456 + 789', answer: 1245, grade: 'A' },
-            { type: '뺄셈', text: '987 - 321', answer: 666, grade: 'A' },
-            { type: '곱셈', text: '123 * 45', answer: 5535, grade: 'A' },
-            { type: '나눗셈', text: '999 / 9', answer: 111, grade: 'A' },
-            { type: '혼합', text: '15 * 5 - 20 / 4', answer: 70, grade: 'A' },
-            // Grade B 문제
-            { type: '덧셈', text: '587 + 912', answer: 1499, grade: 'B' },
-            { type: '뺄셈', text: '845 - 293', answer: 552, grade: 'B' },
-            { type: '곱셈', text: '24 * 36', answer: 864, grade: 'B' },
-            { type: '나눗셈', text: '840 / 12', answer: 70, grade: 'B' },
-            { type: '혼합', text: '100 / 5 + 10 * 3', answer: 50, grade: 'B' },
-            // Grade C 문제
-            { type: '덧셈', text: '352 + 481', answer: 833, grade: 'C' },
-            { type: '뺄셈', text: '756 - 428', answer: 328, grade: 'C' },
-            { type: '곱셈', text: '17 * 8', answer: 136, grade: 'C' },
-            { type: '나눗셈', text: '150 / 6', answer: 25, grade: 'C' },
-            { type: '혼합', text: '12 + 8 / 2', answer: 16, grade: 'C' },
-            // Grade D 문제
-            { type: '덧셈', text: '51 + 27', answer: 78, grade: 'D' },
-            { type: '뺄셈', text: '93 - 45', answer: 48, grade: 'D' },
-            { type: '곱셈', text: '6 * 13', answer: 78, grade: 'D' },
-            { type: '나눗셈', text: '108 / 9', answer: 12, grade: 'D' },
-            { type: '혼합', text: '3 * 4 + 5', answer: 17, grade: 'D' },
-            // Grade S 문제 (최상급)
-            { type: '덧셈', text: '9999 + 1', answer: 10000, grade: 'S' },
-            { type: '뺄셈', text: '100000 - 1', answer: 99999, grade: 'S' },
-            { type: '곱셈', text: '12345 * 6789', answer: 83810205, grade: 'S' },
-            { type: '나눗셈', text: '987654 / 321', answer: 3076.803738, grade: 'S' },
-            { type: '혼합', text: '(100 + 20) * 5 - (50 / 2)', answer: 575, grade: 'S' },
-            // Grade F 문제 (아주 쉬운)
-            { type: '덧셈', text: '1 + 1', answer: 2, grade: 'F' },
-            { type: '뺄셈', text: '5 - 3', answer: 2, grade: 'F' },
-            { type: '곱셈', text: '2 * 3', answer: 6, grade: 'F' },
-            { type: '나눗셈', text: '10 / 2', answer: 5, grade: 'F' },
-            { type: '혼합', text: '2 + 2 * 2', answer: 6, grade: 'F' },
-        ];
-        
-        // 사용자가 선택한 난이도 (기본값 'E')
-        let userGrade = localStorage.getItem('userGrade') || 'E';
+        const difficultyRanges = {
+            'F': { numMin: 1, numMax: 9, ops: ['+', '-', '*'] },
+            'E': { numMin: 10, numMax: 99, ops: ['+', '-', '*'] },
+            'D': { numMin: 10, numMax: 99, ops: ['+', '-', '*', '/'] },
+            'C': { numMin: 100, numMax: 999, ops: ['+', '-', '*'] },
+            'B': { numMin: 100, numMax: 999, ops: ['+', '-', '*', '/'] },
+            'A': { numMin: 100, numMax: 9999, ops: ['+', '-', '*', '/'] },
+            'S': { numMin: 1000, numMax: 99999, ops: ['+', '-', '*'] }
+        };
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function generateRandomProblem(type, difficulty) {
+            const config = difficultyRanges[difficulty];
+            let problem = { text: '', answer: 0, type: type, grade: difficulty };
+
+            if (type === '전체') {
+                const availableTypes = ['덧셈', '뺄셈', '곱셈', '나눗셈', '혼합'];
+                type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+            }
+            
+            if (type === '혼합') {
+                const op1 = config.ops[Math.floor(Math.random() * config.ops.length)];
+                const op2 = config.ops[Math.floor(Math.random() * config.ops.length)];
+                let n1, n2, n3;
+
+                switch(difficulty) {
+                    case 'F':
+                    case 'E':
+                    case 'D':
+                        n1 = getRandomInt(1, 10);
+                        n2 = getRandomInt(1, 10);
+                        n3 = getRandomInt(1, 10);
+                        break;
+                    case 'C':
+                    case 'B':
+                        n1 = getRandomInt(10, 50);
+                        n2 = getRandomInt(1, 20);
+                        n3 = getRandomInt(1, 15);
+                        break;
+                    case 'A':
+                        n1 = getRandomInt(50, 200);
+                        n2 = getRandomInt(10, 50);
+                        n3 = getRandomInt(5, 20);
+                        break;
+                    case 'S':
+                        n1 = getRandomInt(100, 500);
+                        n2 = getRandomInt(50, 100);
+                        n3 = getRandomInt(10, 50);
+                        break;
+                }
+
+                problem.text = `${n1} ${op1} ${n2} ${op2} ${n3}`;
+                // 안전하게 answer를 계산하기 위해 eval 사용
+                problem.answer = eval(problem.text);
+                
+                // 혼합 문제에서 나눗셈이 사용되고 정수가 아닐 경우, 정수가 될 때까지 재생성
+                if (problem.text.includes('/') && problem.answer !== Math.floor(problem.answer)) {
+                    return generateRandomProblem('혼합', difficulty);
+                }
+
+            } else {
+                let num1, num2;
+                if (type === '나눗셈') {
+                    num2 = getRandomInt(2, 12);
+                    num1 = num2 * getRandomInt(1, 12);
+                    
+                    if (difficulty === 'D') {
+                       num2 = getRandomInt(2, 9);
+                       num1 = num2 * getRandomInt(10, 20);
+                    } else if (difficulty === 'B') {
+                       num2 = getRandomInt(10, 20);
+                       num1 = num2 * getRandomInt(10, 30);
+                    } else if (difficulty === 'A') {
+                       num2 = getRandomInt(20, 50);
+                       num1 = num2 * getRandomInt(20, 50);
+                    } else if (difficulty === 'S') {
+                       num2 = getRandomInt(50, 100);
+                       num1 = num2 * getRandomInt(50, 100);
+                    }
+                } else {
+                    num1 = getRandomInt(config.numMin, config.numMax);
+                    num2 = getRandomInt(config.numMin, config.numMax);
+                }
+
+                const operator = {
+                    '덧셈': '+',
+                    '뺄셈': '-',
+                    '곱셈': '*',
+                    '나눗셈': '/'
+                }[type];
+
+                if (type === '뺄셈' && num2 > num1) {
+                    [num1, num2] = [num2, num1];
+                }
+                
+                problem.text = `${num1} ${operator} ${num2}`;
+                problem.answer = eval(problem.text);
+            }
+            return problem;
+        }
 
         function showSection(sectionId) {
-            document.querySelectorAll('.quiz-section').forEach(section => {
+            document.querySelectorAll('.quiz-section, .menu').forEach(section => {
                 section.style.display = 'none';
             });
-            document.getElementById('mainMenu').style.display = 'none';
-            document.getElementById(sectionId).style.display = 'block';
+            document.getElementById(sectionId).style.display = 'flex';
+            if (sectionId === 'quizView') {
+                document.getElementById('quizView').style.flexDirection = 'column';
+            }
         }
 
         function showMainMenu() {
-            document.querySelectorAll('.quiz-section').forEach(section => {
-                section.style.display = 'none';
-            });
-            document.getElementById('mainMenu').style.display = 'flex';
+            document.getElementById('userName').value = userName;
+            showSection('mainMenu');
         }
 
-        function beginQuiz() {
+        function goToSettings() {
             userName = document.getElementById('userName').value;
             if (userName.trim() === '') {
                 alert('이름을 입력해주세요!');
                 return;
             }
+            document.getElementById('settingsTitle').innerText = `${userName}님, 퀴즈 설정을 선택하세요!`;
+            showSection('quizSettingsView');
+        }
+
+        function beginQuiz() {
+            const selectedType = document.getElementById('problemType').value;
+            const selectedDifficulty = document.getElementById('difficulty').value;
+            questionsPerQuiz = parseInt(document.getElementById('questionCount').value);
 
             currentQuestionIndex = 0;
             score = 0;
-            quizQuestions = generateQuizQuestions();
+            quizQuestions = generateQuizQuestions(selectedType, selectedDifficulty);
             startTime = new Date();
             updateQuizUI();
             showSection('quizView');
-            document.getElementById('quizTitle').innerText = `${userName}님의 퀴즈`;
+            document.getElementById('quizTitle').innerText = `${userName}님의 퀴즈 (${selectedDifficulty} 난이도)`;
         }
 
-        function generateQuizQuestions() {
-            const filteredProblems = allProblems.filter(problem => problem.grade === userGrade);
-            if (filteredProblems.length < questionsPerQuiz) {
-                return filteredProblems.sort(() => 0.5 - Math.random());
+        function generateQuizQuestions(type, difficulty) {
+            const questions = [];
+            for(let i = 0; i < questionsPerQuiz; i++) {
+                questions.push(generateRandomProblem(type, difficulty));
             }
-            return filteredProblems.sort(() => 0.5 - Math.random()).slice(0, questionsPerQuiz);
+            return questions;
+        }
+        
+        function createVerticalProblemHTML(questionText) {
+            const parts = questionText.split(/([+\-*/])/);
+            const num1 = parts[0].trim();
+            const operator = parts[1].trim();
+            const num2 = parts[2].trim();
+            
+            let html = '';
+
+            if (operator === '/') {
+                // 나눗셈을 위한 특별한 세로셈
+                html = `
+                    <div class="vertical-row">${num1}</div>
+                    <div class="vertical-row"><span class="operator">÷</span>${num2}</div>
+                    <div class="vertical-line"></div>
+                `;
+            } else {
+                // 기존의 덧셈, 뺄셈, 곱셈 세로셈
+                html = `
+                    <div class="vertical-row">${num1}</div>
+                    <div class="vertical-row"><span class="operator">${operator}</span>${num2}</div>
+                    <div class="vertical-line"></div>
+                `;
+            }
+            
+            return html;
         }
 
         function updateQuizUI() {
-            if (currentQuestionIndex < questionsPerQuiz) {
+            if (currentQuestionIndex < quizQuestions.length) {
                 const currentQuestion = quizQuestions[currentQuestionIndex];
                 document.getElementById('questionText').innerText = currentQuestion.text;
+                
+                const verticalProblemDiv = document.getElementById('verticalProblem');
+                // 나눗셈 문제에도 세로셈을 적용
+                if (['덧셈', '뺄셈', '곱셈', '나눗셈'].includes(currentQuestion.type)) {
+                    verticalProblemDiv.innerHTML = createVerticalProblemHTML(currentQuestion.text);
+                    verticalProblemDiv.style.display = 'flex';
+                } else {
+                    verticalProblemDiv.innerHTML = '';
+                    verticalProblemDiv.style.display = 'none';
+                }
+
                 document.getElementById('answerInput').value = '';
                 document.getElementById('feedback').innerText = '';
+                document.getElementById('explanationBox').style.display = 'none'; // 다음 문제로 넘어가면 풀이 숨김
                 document.getElementById('quizScore').innerText = `점수: ${score}`;
+                
+                document.getElementById('checkAnswerBtn').style.display = 'block';
+                document.getElementById('nextQuestionBtn').style.display = 'none';
 
-                // 프로그레스 바 업데이트
-                const progress = (currentQuestionIndex / questionsPerQuiz) * 100;
+                const progress = (currentQuestionIndex / quizQuestions.length) * 100;
                 document.getElementById('progressBar').style.width = `${progress}%`;
             } else {
                 endQuiz();
@@ -332,20 +529,172 @@
             const userAnswer = parseFloat(document.getElementById('answerInput').value);
             const currentQuestion = quizQuestions[currentQuestionIndex];
             const feedbackElement = document.getElementById('feedback');
+            const explanationBox = document.getElementById('explanationBox');
             
             if (userAnswer === currentQuestion.answer) {
                 feedbackElement.innerText = '정답입니다! 😊';
                 feedbackElement.className = 'feedback correct';
                 score += 10;
+                explanationBox.style.display = 'none';
             } else {
                 feedbackElement.innerText = `아쉽네요. 정답은 ${currentQuestion.answer}입니다.`;
                 feedbackElement.className = 'feedback wrong';
+                explanationBox.innerHTML = `<h4>문제 풀이</h4>${generateExplanation(currentQuestion)}`;
+                explanationBox.style.display = 'block';
             }
 
-            setTimeout(() => {
-                currentQuestionIndex++;
-                updateQuizUI();
-            }, 1500);
+            document.getElementById('checkAnswerBtn').style.display = 'none';
+            document.getElementById('nextQuestionBtn').style.display = 'block';
+        }
+
+        // --- 문제 풀이 로직 추가 및 수정 ---
+        function generateExplanation(question) {
+            const parts = question.text.split(/([+\-*/])/);
+            const num1 = parseFloat(parts[0].trim());
+            const operator = parts[1].trim();
+            const num2 = parseFloat(parts[2].trim());
+            
+            let explanation = '';
+            let tip = '';
+
+            switch (operator) {
+                case '+':
+                    let n1_temp = num1;
+                    let n2_temp = num2;
+                    let sum = 0;
+                    let carry = 0;
+                    let i = 0;
+
+                    explanation += `<div class="explanation-step"><strong>${num1} + ${num2}</strong>를 계산해봅시다.</div>`;
+
+                    while (n1_temp > 0 || n2_temp > 0 || carry > 0) {
+                        const d1 = n1_temp % 10;
+                        const d2 = n2_temp % 10;
+                        const digitSum = d1 + d2 + carry;
+                        
+                        explanation += `<div class="explanation-step"><strong>${10**i}의 자리:</strong> ${d1} + ${d2} + ${carry}(올림) = ${digitSum}입니다.</div>`;
+
+                        if (digitSum >= 10) {
+                            carry = Math.floor(digitSum / 10);
+                            explanation += `<div class="explanation-step"><strong>${10**(i+1)}의 자리로 ${carry}를 올립니다.</strong></div>`;
+                        } else {
+                            carry = 0;
+                        }
+                        
+                        sum = (digitSum % 10) * (10**i) + sum;
+                        n1_temp = Math.floor(n1_temp / 10);
+                        n2_temp = Math.floor(n2_temp / 10);
+                        i++;
+                    }
+                    explanation += `<div class="explanation-step">최종 결과는 ${sum}입니다.</div>`;
+                    tip = '덧셈은 오른쪽부터 시작해서 한 자리씩 더하고, 합이 10이 넘으면 다음 자리로 올림하는 것이 핵심입니다.';
+                    break;
+                case '-':
+                    let n1_str = num1.toString();
+                    let n2_str = num2.toString();
+                    let result_str = '';
+                    let borrow = 0;
+
+                    const maxLength = Math.max(n1_str.length, n2_str.length);
+                    n1_str = n1_str.padStart(maxLength, '0');
+                    n2_str = n2_str.padStart(maxLength, '0');
+                    
+                    explanation += `<div class="explanation-step"><strong>${num1} - ${num2}</strong>를 계산해봅시다.</div>`;
+                    
+                    for (let i = maxLength - 1; i >= 0; i--) {
+                        let d1 = parseInt(n1_str[i]);
+                        let d2 = parseInt(n2_str[i]);
+                        
+                        let diff = d1 - d2 - borrow;
+                        
+                        explanation += `<div class="explanation-step"><strong>${10**(maxLength - 1 - i)}의 자리:</strong> ${d1} - ${d2} - ${borrow}(받아내림) = ${diff}입니다.</div>`;
+                        
+                        if (diff < 0) {
+                            diff += 10;
+                            borrow = 1;
+                            explanation += `<div class="explanation-step"><strong>왼쪽 자리에서 10을 받아내립니다.</strong></div>`;
+                        } else {
+                            borrow = 0;
+                        }
+                        result_str = diff.toString() + result_str;
+                    }
+                    
+                    explanation += `<div class="explanation-step">최종 결과는 ${question.answer}입니다.</div>`;
+                    tip = '뺄셈은 자리가 부족할 때 왼쪽 자리에서 10을 빌려오는 **받아내림**을 정확히 해야 합니다.';
+                    break;
+                case '*':
+                    const n1_str_m = num1.toString();
+                    const n2_str_m = num2.toString();
+                    
+                    explanation += `<div class="explanation-step"><strong>${num1} x ${num2}</strong>를 계산해봅시다.</div>`;
+                    
+                    for (let i = n2_str_m.length - 1; i >= 0; i--) {
+                        const currentDigit = parseInt(n2_str_m[i]);
+                        const partialProduct = num1 * currentDigit;
+                        
+                        explanation += `<div class="explanation-step"><strong>1단계:</strong> ${num1} x ${currentDigit} = ${partialProduct}입니다.</div>`;
+                    }
+                    
+                    explanation += `<div class="explanation-step"><strong>2단계:</strong> 각 곱셈 결과를 자리에 맞춰 더합니다.</div>`;
+                    explanation += `<div class="explanation-step">최종 결과는 ${question.answer}입니다.</div>`;
+                    tip = '곱셈은 곱하는 수의 각 자리 수와 순서대로 곱한 뒤, 자리를 맞춰 더하는 과정이 중요합니다.';
+                    break;
+                case '/':
+                    const remainder = num1 % num2;
+                    const quotient = Math.floor(num1 / num2);
+                    explanation = `
+                        <div class="explanation-step"><strong>${num1} ÷ ${num2}</strong>를 계산해봅시다.</div>
+                        <div class="explanation-step"><strong>1단계:</strong> ${num1} 안에 ${num2}가 몇 번 들어가는지 확인합니다.</div>
+                        <div class="explanation-step"><strong>2단계:</strong> 몫은 ${quotient}이고, 나머지는 ${remainder}입니다.</div>
+                        <div class="explanation-step">따라서 ${num1} ÷ ${num2}의 정답은 몫인 ${question.answer}입니다.</div>
+                    `;
+                    tip = '나눗셈은 몫과 나머지를 정확히 구분하는 것이 중요합니다. 나머지가 없는지 확인하세요.';
+                    break;
+                default: // 혼합 계산
+                    // 정규식을 사용하여 연산자와 숫자를 분리
+                    const mixed_parts = question.text.match(/(\d+)\s*([+\-*/])\s*(\d+)\s*([+\-*/])\s*(\d+)/);
+                    if (!mixed_parts) return '잘못된 혼합 문제입니다.';
+
+                    const p1 = parseInt(mixed_parts[1]);
+                    const op1 = mixed_parts[2];
+                    const p2 = parseInt(mixed_parts[3]);
+                    const op2 = mixed_parts[4];
+                    const p3 = parseInt(mixed_parts[5]);
+                    
+                    explanation += `<div class="explanation-step"><strong>${p1} ${op1} ${p2} ${op2} ${p3}</strong>를 계산해봅시다.</div>`;
+                    
+                    // 연산 순서 결정
+                    if ((op1 === '*' || op1 === '/') && (op2 === '+' || op2 === '-')) {
+                        // 첫 번째 연산 먼저
+                        const firstResult = eval(`${p1}${op1}${p2}`);
+                        explanation += `<div class="explanation-step"><strong>1단계:</strong> 연산 순서에 따라 ${p1} ${op1} ${p2}를 먼저 계산합니다. 결과는 ${firstResult}입니다.</div>`;
+                        const finalResult = eval(`${firstResult}${op2}${p3}`);
+                        explanation += `<div class="explanation-step"><strong>2단계:</strong> 다음으로 ${firstResult} ${op2} ${p3}를 계산합니다. 결과는 ${finalResult}입니다.</div>`;
+                    } else if ((op1 === '+' || op1 === '-') && (op2 === '*' || op2 === '/')) {
+                        // 두 번째 연산 먼저
+                        const secondResult = eval(`${p2}${op2}${p3}`);
+                        explanation += `<div class="explanation-step"><strong>1단계:</strong> 연산 순서에 따라 ${p2} ${op2} ${p3}를 먼저 계산합니다. 결과는 ${secondResult}입니다.</div>`;
+                        const finalResult = eval(`${p1}${op1}${secondResult}`);
+                        explanation += `<div class="explanation-step"><strong>2단계:</strong> 다음으로 ${p1} ${op1} ${secondResult}를 계산합니다. 결과는 ${finalResult}입니다.</div>`;
+                    } else {
+                        // 순서대로 계산 (왼쪽부터)
+                        const firstResult = eval(`${p1}${op1}${p2}`);
+                        explanation += `<div class="explanation-step"><strong>1단계:</strong> 연산 순서에 따라 왼쪽부터 ${p1} ${op1} ${p2}를 계산합니다. 결과는 ${firstResult}입니다.</div>`;
+                        const finalResult = eval(`${firstResult}${op2}${p3}`);
+                        explanation += `<div class="explanation-step"><strong>2단계:</strong> 다음으로 ${firstResult} ${op2} ${p3}를 계산합니다. 결과는 ${finalResult}입니다.</div>`;
+                    }
+                    
+                    explanation += `<div class="explanation-step">최종 결과는 ${question.answer}입니다.</div>`;
+                    tip = '혼합 계산은 **곱셈과 나눗셈을 덧셈과 뺄셈보다 먼저** 계산하는 순서를 꼭 지켜야 합니다.';
+            }
+
+            return explanation + `<div class="explanation-step"><strong>💡 팁:</strong> ${tip}</div>`;
+        }
+        // --- 문제 풀이 로직 추가 끝 ---
+
+        function goToNextQuestion() {
+            currentQuestionIndex++;
+            updateQuizUI();
         }
 
         function endQuiz() {
@@ -358,21 +707,11 @@
                 userName: userName,
                 score: score,
                 date: new Date().toLocaleDateString('ko-KR'),
-                time: timeTaken,
-                grade: userGrade
+                time: timeTaken
             });
             localStorage.setItem('quizRecords', JSON.stringify(records));
 
             showMainMenu();
-            updateGradeDisplay();
-        }
-
-        function updateGradeDisplay() {
-            const recentScores = records.filter(record => record.userName === userName);
-            if (recentScores.length > 0) {
-                const latestRecord = recentScores[recentScores.length - 1];
-                document.getElementById('quizTitle').innerText = `${userName}님의 최근 점수: ${latestRecord.score}점`;
-            }
         }
 
         function showRecords() {
@@ -388,7 +727,7 @@
                     <strong>${index + 1}. ${record.userName}</strong><br>
                     점수: ${record.score}점<br>
                     걸린 시간: ${record.time}초<br>
-                    난이도: ${record.grade}
+                    날짜: ${record.date}
                 </div>
             `).join('');
         }
