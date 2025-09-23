@@ -177,18 +177,39 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
+        /* 가로형 문제 스타일 */
         .question {
             font-size: 1.5em;
             margin-bottom: 20px;
             color: #333;
         }
-
-        .question-image {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
+        
+        /* 세로형 문제 컨테이너 스타일 */
+        .problem-vertical-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* 오른쪽 정렬 */
+            font-family: 'Courier New', Courier, monospace; /* 고정폭 글꼴로 가독성 향상 */
+            font-size: 2em;
+            font-weight: bold;
+            line-height: 1.2;
+            margin-bottom: 20px;
+        }
+        
+        .problem-vertical-container .line {
+            display: flex;
+            justify-content: flex-end;
+            width: 100%;
+        }
+        
+        .problem-vertical-container .operator {
+            margin-right: 10px;
+        }
+        
+        .problem-vertical-container .separator {
+            width: 100%;
+            border-bottom: 2px solid #667eea;
+            margin: 5px 0;
         }
 
         .choices {
@@ -570,7 +591,7 @@
                 <div class="progress-bar" id="progressBar"></div>
             </div>
             <div id="questionCard" class="question-card">
-                <div class="question" id="questionText"></div>
+                <div id="questionDisplay"></div>
                 <div class="choices" id="choicesContainer"></div>
             </div>
             <div class="quiz-controls">
@@ -624,7 +645,7 @@
             const question = `${num1} + ${num2} = ?`;
             const answer = num1 + num2;
             const choices = generateChoices(answer, difficulty);
-            return { question, answer, choices };
+            return { question, num1, num2, operator: '+', answer, choices };
         }
 
         function generateSubtractionProblem(grade, difficulty) {
@@ -642,7 +663,7 @@
             const question = `${num1} - ${num2} = ?`;
             const answer = num1 - num2;
             const choices = generateChoices(answer, difficulty);
-            return { question, answer, choices };
+            return { question, num1, num2, operator: '-', answer, choices };
         }
 
         function generateMultiplicationProblem(grade, difficulty) {
@@ -660,7 +681,7 @@
             const question = `${num1} × ${num2} = ?`;
             const answer = num1 * num2;
             const choices = generateChoices(answer, difficulty);
-            return { question, answer, choices };
+            return { question, num1, num2, operator: '×', answer, choices };
         }
 
         function generateDivisionProblem(grade, difficulty) {
@@ -678,7 +699,7 @@
             const question = `${num1} ÷ ${num2} = ?`;
             const answer = num1 / num2;
             const choices = generateChoices(answer, difficulty);
-            return { question, answer, choices };
+            return { question, num1, num2, operator: '÷', answer, choices };
         }
 
         function generateMixedProblem(grade, difficulty) {
@@ -913,13 +934,34 @@
             }
             
             const questionData = questions[currentQuestionIndex];
-            document.getElementById('questionText').innerText = questionData.question;
-            
+            const questionDisplay = document.getElementById('questionDisplay');
             const choicesContainer = document.getElementById('choicesContainer');
+            
+            questionDisplay.innerHTML = '';
             choicesContainer.innerHTML = '';
             
-            // *** 수정된 부분: 이제 여기서 레이아웃 클래스를 다시 적용합니다. ***
             const layoutType = document.getElementById('layoutType').value;
+
+            // 문제 표시 로직
+            if (layoutType === 'vertical' && questionData.operator) {
+                const problemContainer = document.createElement('div');
+                problemContainer.classList.add('problem-vertical-container');
+                problemContainer.innerHTML = `
+                    <div class="line">${questionData.num1}</div>
+                    <div class="line">
+                        <span class="operator">${questionData.operator}</span>
+                        ${questionData.num2}
+                    </div>
+                    <div class="separator"></div>
+                `;
+                questionDisplay.appendChild(problemContainer);
+                questionDisplay.classList.remove('question'); // 가로형 문제 스타일 제거
+            } else {
+                questionDisplay.innerHTML = `<div class="question" id="questionText">${questionData.question}</div>`;
+                questionDisplay.classList.add('question'); // 가로형 문제 스타일 적용
+            }
+
+            // 정답 선택지 표시 로직
             if (layoutType === 'vertical') {
                 choicesContainer.classList.add('vertical-layout');
             } else {
