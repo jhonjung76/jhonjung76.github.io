@@ -96,6 +96,13 @@
             font-size: 1em;
             margin-bottom: 10px;
         }
+        
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
 
         .feedback {
             font-weight: bold;
@@ -156,12 +163,20 @@
             transition: width 0.5s ease;
         }
 
-        .about-section, .records-section {
+        .about-section, .records-section, .multiplication-table-section {
             display: none;
             text-align: left;
             padding: 20px;
         }
-
+        
+        /* 앱 정보 페이지 정렬 */
+        #aboutView {
+            display: none;
+            flex-direction: column;
+            align-items: center; /* 수평 중앙 정렬 */
+            text-align: center; /* 텍스트 중앙 정렬 */
+        }
+        
         .record-item {
             background-color: #f0f0f0;
             padding: 15px;
@@ -169,7 +184,7 @@
             margin-bottom: 10px;
         }
         
-        .records-section h2, .about-section h2 {
+        .records-section h2, .about-section h2, .multiplication-table-section h2 {
             margin-bottom: 20px;
             color: #333;
         }
@@ -192,6 +207,49 @@
 
         .select-group {
             text-align: left;
+        }
+        
+        /* 퀴즈 설정 페이지 정렬 및 스타일 개선 */
+        #quizSettingsView {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        #quizSettingsView .section-title {
+            font-size: 1.8em;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        #quizSettingsView .select-container {
+            width: 100%;
+            max-width: 400px; /* 드롭다운 그룹의 최대 너비 */
+            margin-bottom: 30px;
+        }
+        
+        #quizSettingsView .select-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+        }
+        
+        #quizSettingsView .select-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        #quizSettingsView .input-field {
+            width: 100%;
+        }
+        
+        #quizSettingsView .menu-button {
+            width: 100%;
+            max-width: 300px; /* 버튼의 최대 너비 */
+            margin-bottom: 10px;
         }
 
         .vertical-problem {
@@ -218,6 +276,45 @@
             display: inline-block;
             margin-right: 5px;
         }
+        
+        .name-history {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            margin-top: -5px;
+            margin-bottom: 15px;
+        }
+        
+        .name-tag {
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .name-tag:hover {
+            background-color: #d0d0d0;
+        }
+        
+        .name-tag .delete-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.1em;
+            cursor: pointer;
+            color: #888;
+            padding: 0;
+            line-height: 1;
+        }
+        
+        .name-tag .delete-btn:hover {
+            color: #333;
+        }
+
     </style>
 </head>
 <body>
@@ -225,10 +322,12 @@
         <h1 class="title">수학 퀴즈 앱</h1>
 
         <div class="menu" id="mainMenu">
-            <h2 class="section-title">수학 퀴즈에 도전해보세요!</h2>
+            <h2 class="section-title">윤하! 하윤! 노력해서 보여줘!!</h2>
             <label for="userName" style="font-weight: bold; margin-bottom: 5px; display: block;">퀴즈를 시작하기 전에 이름을 입력해주세요.</label>
-            <input type="text" id="userName" placeholder="이름을 입력하세요" class="input-field">
+            <input type="text" id="userName" class="input-field" placeholder="이름을 입력하세요">
+            <div id="nameHistoryContainer" class="name-history"></div>
             <button class="menu-button" onclick="goToSettings()">퀴즈 시작</button>
+            <button class="menu-button" onclick="showMultiplicationTable()">구구단 표 보기</button>
             <button class="menu-button" onclick="showRecords()">기록 보기</button>
             <button class="menu-button" onclick="showAbout()">앱 정보</button>
         </div>
@@ -284,9 +383,14 @@
                 </div>
                 
                 <input type="number" id="answerInput" class="answer-input" placeholder="정답을 입력하세요">
+                
+                <div class="button-container">
+                    <button id="checkAnswerBtn" class="menu-button" onclick="checkAnswer()">정답 확인</button>
+                    <button id="nextQuestionBtn" class="menu-button" onclick="goToNextQuestion()" style="display: none;">다음 문제</button>
+                </div>
+
                 <p id="feedback" class="feedback"></p>
-                <div id="explanationBox" class="explanation-box"></div> <button id="checkAnswerBtn" class="menu-button" onclick="checkAnswer()">정답 확인</button>
-                <button id="nextQuestionBtn" class="menu-button" onclick="goToNextQuestion()" style="display: none;">다음 문제</button>
+                <div id="explanationBox" class="explanation-box"></div>
             </div>
             <div id="quizScore" class="score-display">점수: 0</div>
             <button class="menu-button" onclick="showMainMenu()">메인 메뉴로</button>
@@ -296,14 +400,20 @@
             <h2 class="section-title">퀴즈 기록</h2>
             <div id="recordsContainer"></div>
             <button class="menu-button" onclick="showMainMenu()">메인 메뉴로</button>
+            <button class="menu-button" onclick="resetRecords()">기록 리셋</button>
         </div>
 
         <div class="quiz-section" id="aboutView">
-            <h2 class="section-title">앱 정보</h2>
+            <h2 class="section-title" style="text-align: center;">앱 정보</h2>
             <p style="text-align: center; margin-bottom: 20px;">
-                이 앱은 사용자의 수학 실력 향상을 위해 만들어졌습니다.<br>
-                다양한 난이도와 유형의 문제에 도전해보세요!
+                이 앱은 윤하 와 하윤이의 연산 수학 실력 향상을 위해 만들어 졌습니다. 아빠는 마리셀, 윤하, 하윤이 모두를 사랑합니다!^^
             </p>
+            <button class="menu-button" style="display: block; margin: 0 auto;" onclick="showMainMenu()">메인 메뉴로</button>
+        </div>
+
+        <div class="quiz-section" id="multiplicationTableView">
+            <h2 class="section-title">구구단 표</h2>
+            <div id="multiplicationTableContainer" style="text-align: center;"></div>
             <button class="menu-button" onclick="showMainMenu()">메인 메뉴로</button>
         </div>
     </div>
@@ -316,6 +426,7 @@
         const records = JSON.parse(localStorage.getItem('quizRecords')) || [];
         let questionsPerQuiz = 10;
         let startTime;
+        let userNames = JSON.parse(localStorage.getItem('userNames')) || [];
 
         const difficultyRanges = {
             'F': { numMin: 1, numMax: 9, ops: ['+', '-', '*'] },
@@ -426,22 +537,62 @@
                 section.style.display = 'none';
             });
             document.getElementById(sectionId).style.display = 'flex';
-            if (sectionId === 'quizView') {
-                document.getElementById('quizView').style.flexDirection = 'column';
+            if (sectionId === 'quizView' || sectionId === 'multiplicationTableView' || sectionId === 'recordsView' || sectionId === 'aboutView') {
+                document.getElementById(sectionId).style.flexDirection = 'column';
             }
         }
 
         function showMainMenu() {
             document.getElementById('userName').value = userName;
             showSection('mainMenu');
+            updateNameHistory();
+        }
+        
+        // 이름 목록을 표시하는 함수
+        function updateNameHistory() {
+            const container = document.getElementById('nameHistoryContainer');
+            container.innerHTML = '';
+            userNames.forEach(name => {
+                const nameTag = document.createElement('div');
+                nameTag.className = 'name-tag';
+                nameTag.innerText = name;
+                nameTag.onclick = () => {
+                    document.getElementById('userName').value = name;
+                };
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.innerText = '×';
+                deleteBtn.onclick = (event) => {
+                    event.stopPropagation(); // 부모 클릭 이벤트 방지
+                    deleteName(name);
+                };
+                
+                nameTag.appendChild(deleteBtn);
+                container.appendChild(nameTag);
+            });
+        }
+        
+        // 이름을 삭제하는 함수
+        function deleteName(nameToDelete) {
+            userNames = userNames.filter(name => name !== nameToDelete);
+            localStorage.setItem('userNames', JSON.stringify(userNames));
+            updateNameHistory();
         }
 
         function goToSettings() {
-            userName = document.getElementById('userName').value;
-            if (userName.trim() === '') {
+            userName = document.getElementById('userName').value.trim();
+            if (userName === '') {
                 alert('이름을 입력해주세요!');
                 return;
             }
+            
+            // 새로운 이름이면 추가하고 저장
+            if (!userNames.includes(userName)) {
+                userNames.push(userName);
+                localStorage.setItem('userNames', JSON.stringify(userNames));
+            }
+
             document.getElementById('settingsTitle').innerText = `${userName}님, 퀴즈 설정을 선택하세요!`;
             showSection('quizSettingsView');
         }
@@ -547,7 +698,6 @@
             document.getElementById('nextQuestionBtn').style.display = 'block';
         }
 
-        // --- 문제 풀이 로직 추가 및 수정 ---
         function generateExplanation(question) {
             const parts = question.text.split(/([+\-*/])/);
             const num1 = parseFloat(parts[0].trim());
@@ -719,21 +869,56 @@
             const recordsContainer = document.getElementById('recordsContainer');
             if (records.length === 0) {
                 recordsContainer.innerHTML = '<p>아직 퀴즈 기록이 없습니다.</p>';
-                return;
+            } else {
+                const sortedRecords = records.sort((a, b) => b.score - a.score);
+                recordsContainer.innerHTML = sortedRecords.map((record, index) => `
+                    <div class="record-item">
+                        <strong>${index + 1}. ${record.userName}</strong><br>
+                        점수: ${record.score}점<br>
+                        걸린 시간: ${record.time}초<br>
+                        날짜: ${record.date}
+                    </div>
+                `).join('');
             }
-            const sortedRecords = records.sort((a, b) => b.score - a.score);
-            recordsContainer.innerHTML = sortedRecords.map((record, index) => `
-                <div class="record-item">
-                    <strong>${index + 1}. ${record.userName}</strong><br>
-                    점수: ${record.score}점<br>
-                    걸린 시간: ${record.time}초<br>
-                    날짜: ${record.date}
-                </div>
-            `).join('');
+        }
+
+        function resetRecords() {
+            const password = prompt("기록을 초기화하려면 비밀번호를 입력하세요.");
+            if (password === '0000') {
+                localStorage.removeItem('quizRecords');
+                records.length = 0;
+                alert("퀴즈 기록이 성공적으로 초기화되었습니다.");
+                showRecords();
+            } else {
+                alert("비밀번호가 틀렸습니다. 기록을 초기화할 수 없습니다.");
+            }
         }
 
         function showAbout() {
             showSection('aboutView');
+        }
+
+        function showMultiplicationTable() {
+            showSection('multiplicationTableView');
+            const container = document.getElementById('multiplicationTableContainer');
+            let tableHTML = '<h3>1단부터 9단까지</h3><table style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
+            
+            tableHTML += '<thead><tr style="background-color: #f2f2f2;">';
+            tableHTML += '<th style="border: 1px solid #ddd; padding: 10px;"></th>';
+            for(let j = 1; j <= 9; j++) {
+                tableHTML += `<th style="border: 1px solid #ddd; padding: 10px;">${j}단</th>`;
+            }
+            tableHTML += '</tr></thead><tbody>';
+
+            for (let i = 1; i <= 9; i++) {
+                tableHTML += `<tr><td style="border: 1px solid #ddd; padding: 10px; font-weight: bold;">x ${i}</td>`;
+                for (let j = 1; j <= 9; j++) {
+                    tableHTML += `<td style="border: 1px solid #ddd; padding: 10px;">${i * j}</td>`;
+                }
+                tableHTML += '</tr>';
+            }
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
         }
 
         // 초기화
