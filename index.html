@@ -190,7 +190,7 @@
             flex-wrap: wrap;
             margin-bottom: 20px;
             gap: 20px;
-            padding: 10px; /* 가시성 확보 */
+            padding: 10px;
             font-size: 1.5em;
             font-weight: bold;
         }
@@ -495,7 +495,7 @@
     <div class="container">
         <h1 class="title">🎯 수학 퀴즈 앱</h1>
         
-        <div id="mainMenu" class="menu">
+        <div id="mainMenu" class="menu quiz-section active">
             <button onclick="startQuiz()">🎮 퀴즈 시작</button>
             <button onclick="showRecords()">📋 기록 보기</button>
         </div>
@@ -1316,8 +1316,9 @@
         }
         
         // 초기화
-        showMainMenu();
         loadRecords();
+        loadUserSuggestions();
+        updateGradeDisplay();
         
         // 이름 저장 및 제안 기능 (기존과 동일)
         function loadUserSuggestions() {
@@ -1383,9 +1384,6 @@
             
             gradeDisplay.textContent = `선택된 학년: ${selectedText}`;
         }
-        
-        loadUserSuggestions();
-        updateGradeDisplay();
     </script>
 </body>
 </html>
