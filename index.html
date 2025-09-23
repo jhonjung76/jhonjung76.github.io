@@ -188,6 +188,12 @@
             margin-bottom: 20px;
             color: #333;
         }
+        
+        .records-section h3 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #4a257e;
+        }
 
         .input-field {
             width: 100%;
@@ -361,6 +367,7 @@
                 <div class="select-group">
                     <label for="questionCount">문제 개수 선택:</label>
                     <select id="questionCount" class="input-field">
+                        <option value="5">5개</option>
                         <option value="10">10개</option>
                         <option value="20">20개</option>
                         <option value="30">30개</option>
@@ -856,6 +863,7 @@
             records.push({
                 userName: userName,
                 score: score,
+                totalQuestions: questionsPerQuiz, // 문제 개수 저장
                 date: new Date().toLocaleDateString('ko-KR'),
                 time: timeTaken
             });
@@ -867,18 +875,55 @@
         function showRecords() {
             showSection('recordsView');
             const recordsContainer = document.getElementById('recordsContainer');
-            if (records.length === 0) {
+            const recordsData = JSON.parse(localStorage.getItem('quizRecords')) || [];
+            
+            if (recordsData.length === 0) {
+                recordsContainer.innerHTML = '<p>아직 퀴즈 기록이 없습니다.</p>';
+                return;
+            }
+
+            // 문제 개수별로 기록 그룹화
+            const groupedRecords = recordsData.reduce((acc, record) => {
+                const key = record.totalQuestions || 10; // 기존 기록을 위해 기본값 10 설정
+                if (!acc[key]) {
+                    acc[key] = [];
+                }
+                acc[key].push(record);
+                return acc;
+            }, {});
+
+            let recordsHTML = '';
+            const questionCounts = [5, 10, 20, 30];
+
+            questionCounts.forEach(count => {
+                if (groupedRecords[count]) {
+                    // 각 그룹별로 점수(내림차순), 시간(오름차순)으로 정렬
+                    const sortedGroup = groupedRecords[count].sort((a, b) => {
+                        if (b.score !== a.score) {
+                            return b.score - a.score;
+                        }
+                        return a.time - b.time;
+                    });
+                    
+                    recordsHTML += `<h3>${count}문제 퀴즈 기록</h3>`;
+                    recordsHTML += sortedGroup.map((record, index) => {
+                        const totalScore = record.totalQuestions * 10;
+                        return `
+                            <div class="record-item">
+                                <strong>${index + 1}. ${record.userName}</strong><br>
+                                점수: ${record.score}점 (${totalScore}점 만점)<br>
+                                걸린 시간: ${record.time}초<br>
+                                날짜: ${record.date}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            });
+
+            if (recordsHTML === '') {
                 recordsContainer.innerHTML = '<p>아직 퀴즈 기록이 없습니다.</p>';
             } else {
-                const sortedRecords = records.sort((a, b) => b.score - a.score);
-                recordsContainer.innerHTML = sortedRecords.map((record, index) => `
-                    <div class="record-item">
-                        <strong>${index + 1}. ${record.userName}</strong><br>
-                        점수: ${record.score}점<br>
-                        걸린 시간: ${record.time}초<br>
-                        날짜: ${record.date}
-                    </div>
-                `).join('');
+                recordsContainer.innerHTML = recordsHTML;
             }
         }
 
