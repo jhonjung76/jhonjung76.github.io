@@ -1839,4 +1839,144 @@
                     explanation = `
                         <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
                         <div class="explanation-step">정비례는 y = ax, 반비례는 y = a/x의 관계식을 가집니다.</div>
-                        <div class="explanation-step">관계식을 정확히 파악하고 문제에 대입하면 해를 구할 수 있습니다.
+                        <div class="explanation-step">관계식을 정확히 파악하고 문제에 대입하면 해를 구할 수 있습니다.</div>
+                    `;
+                    tip = '정비례 그래프는 원점을 지나는 직선, 반비례 그래프는 원점에 대칭인 한 쌍의 매끄러운 곡선입니다.';
+                    break;
+                case '기본도형':
+                    explanation = `
+                        <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
+                        <div class="explanation-step">점, 선, 면의 기본 개념과 각, 맞꼭지각, 동위각, 엇각의 정의를 정확히 알아야 합니다.</div>
+                        <div class="explanation-step">특히, 평행선에서의 각의 성질을 기억하세요.</div>
+                    `;
+                    tip = '도형 문제를 풀 때는 직접 그림을 그려보면 이해하기 쉽습니다.';
+                    break;
+                case '다각형':
+                    explanation = `
+                        <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
+                        <div class="explanation-step">n각형의 내각의 합은 180 × (n - 2)이며, 외각의 합은 항상 360도입니다.</div>
+                        <div class="explanation-step">정다각형의 한 내각의 크기는 (180 × (n - 2)) / n이며, 한 외각의 크기는 360 / n입니다.</div>
+                    `;
+                    tip = '다각형의 외각의 합은 항상 360도라는 사실을 이용하면 문제를 쉽게 풀 수 있습니다.';
+                    break;
+                case '원과부채꼴':
+                    explanation = `
+                        <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
+                        <div class="explanation-step">원주율(π)의 개념과 원, 부채꼴의 둘레, 넓이 공식을 기억하세요.</div>
+                        <div class="explanation-step">부채꼴의 호의 길이와 넓이는 중심각의 크기에 정비례합니다.</div>
+                    `;
+                    tip = '문제에서 제시된 단위(cm, cm²)를 정확하게 확인해야 합니다.';
+                    break;
+                case '입체도형':
+                    explanation = `
+                        <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
+                        <div class="explanation-step">기둥, 뿔, 구 등 입체도형의 특징을 정확하게 구분해야 합니다.</div>
+                        <div class="explanation-step">각 면, 모서리, 꼭짓점의 수를 세는 방법을 익히세요.</div>
+                    `;
+                    tip = '다면체의 종류와 각 면의 개수를 외워두면 좋습니다.';
+                    break;
+                case '회전체':
+                    explanation = `
+                        <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
+                        <div class="explanation-step">회전체를 회전축에 수직인 평면으로 자르면 항상 원이 나오고, 회전축을 포함하는 평면으로 자르면 합동인 단면이 나옵니다.</div>
+                        <div class="explanation-step">단면의 넓이를 구하기 위해서는 회전시키기 전의 도형의 넓이를 구해야 합니다.</div>
+                    `;
+                    tip = '회전체의 단면 문제는 회전하기 전 평면도형을 상상하는 것이 중요합니다.';
+                    break;
+                case '통계':
+                    explanation = `
+                        <div class="explanation-step">정답은 ${problem.answer}입니다.</div>
+                        <div class="explanation-step">도수분포표, 히스토그램, 도수분포다각형의 의미를 정확히 알아야 합니다.</div>
+                        <div class="explanation-step">자료의 평균, 중앙값, 최빈값, 분산, 표준편차 등 통계 용어의 정의를 이해해야 합니다.</div>
+                    `;
+                    tip = '통계 문제에서는 데이터를 정확히 읽고 계산하는 것이 중요합니다.';
+                    break;
+                    
+                default:
+                    explanation = `
+                        <div class="explanation-step">문제를 다시 한 번 차근차근 읽어보세요.</div>
+                        <div class="explanation-step">계산 과정을 단계별로 확인해보세요.</div>
+                        <div class="explanation-step">비슷한 문제를 더 많이 연습해보세요.</div>
+                    `;
+                    tip = '기본 개념을 다시 정리하고 연습 문제를 많이 풀어보세요.';
+            }
+            
+            return explanation + `<div class="tip-box">💡 팁: ${tip}</div>`;
+        }
+        
+        // 유저 제안 저장
+        function saveUserSuggestions(name, grade) {
+            let userFound = false;
+            userSuggestions.forEach(user => {
+                if (user.name === name) {
+                    user.grade = grade;
+                    userFound = true;
+                }
+            });
+            if (!userFound) {
+                userSuggestions.push({ name, grade });
+            }
+            localStorage.setItem('userSuggestions', JSON.stringify(userSuggestions));
+        }
+
+        // 유저 제안 로드
+        function loadUserSuggestions() {
+            const suggestionsDropdown = document.getElementById('suggestionsDropdown');
+            suggestionsDropdown.innerHTML = '';
+            if (userSuggestions.length > 0) {
+                userSuggestions.forEach((user, index) => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.classList.add('suggestion-item');
+                    suggestionItem.innerHTML = `
+                        <span class="suggestion-name">${user.name}</span>
+                        <span class="suggestion-grade">${user.grade}학년</span>
+                        <button class="delete-btn" onclick="deleteUserSuggestion(event, ${index})">×</button>
+                    `;
+                    suggestionItem.onclick = (event) => {
+                        if (event.target.classList.contains('delete-btn')) return;
+                        userNameInput.value = user.name;
+                        document.getElementById('grade').value = user.grade;
+                        updateGradeDisplay();
+                        suggestionsDropdown.style.display = 'none';
+                    };
+                    suggestionsDropdown.appendChild(suggestionItem);
+                });
+                suggestionsDropdown.style.display = 'block';
+            } else {
+                suggestionsDropdown.style.display = 'none';
+            }
+        }
+
+        // 유저 제안 삭제
+        function deleteUserSuggestion(event, index) {
+            event.stopPropagation();
+            userSuggestions.splice(index, 1);
+            localStorage.setItem('userSuggestions', JSON.stringify(userSuggestions));
+            loadUserSuggestions();
+        }
+
+        // 학년명 표시
+        function updateGradeDisplay() {
+            const gradeSelect = document.getElementById('grade');
+            const gradeDisplay = document.getElementById('gradeDisplay');
+            const selectedOption = gradeSelect.options[gradeSelect.selectedIndex];
+            
+            let gradeText = '';
+            if (selectedOption.parentElement.label === '초등학교') {
+                gradeText = `초등학교 ${selectedOption.text}`;
+            } else if (selectedOption.parentElement.label === '중학교') {
+                gradeText = `중학교 ${selectedOption.text}`;
+            } else if (selectedOption.parentElement.label === '고등학교') {
+                gradeText = `고등학교 ${selectedOption.text}`;
+            }
+            
+            gradeDisplay.textContent = gradeText;
+        }
+
+        // 초기화
+        showMainMenu();
+        loadUserSuggestions();
+        updateGradeDisplay();
+    </script>
+</body>
+</html>
