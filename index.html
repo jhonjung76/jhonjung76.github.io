@@ -890,7 +890,6 @@
             const difficulty = document.getElementById('difficulty').value;
             const problemType = document.getElementById('problemType').value;
             const grade = parseInt(document.getElementById('grade').value);
-            const layoutType = document.getElementById('layoutType').value; // 새로운 레이아웃 타입 가져오기
             
             questions = [];
             wrongAnswers = [];
@@ -898,14 +897,6 @@
                 questions.push(createProblem(problemType, grade, difficulty));
             }
 
-            // 선택한 레이아웃 타입에 따라 CSS 클래스 적용
-            const choicesContainer = document.getElementById('choicesContainer');
-            if (layoutType === 'vertical') {
-                choicesContainer.classList.add('vertical-layout');
-            } else {
-                choicesContainer.classList.remove('vertical-layout');
-            }
-            
             currentQuestionIndex = 0;
             score = 0;
             showSection('quizProgress');
@@ -926,6 +917,14 @@
             
             const choicesContainer = document.getElementById('choicesContainer');
             choicesContainer.innerHTML = '';
+            
+            // *** 수정된 부분: 이제 여기서 레이아웃 클래스를 다시 적용합니다. ***
+            const layoutType = document.getElementById('layoutType').value;
+            if (layoutType === 'vertical') {
+                choicesContainer.classList.add('vertical-layout');
+            } else {
+                choicesContainer.classList.remove('vertical-layout');
+            }
             
             questionData.choices.forEach(choice => {
                 const button = document.createElement('button');
