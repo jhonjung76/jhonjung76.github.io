@@ -177,10 +177,19 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        .question {
-            font-size: 1.5em;
+        .question-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             margin-bottom: 20px;
+            gap: 20px;
+        }
+        
+        .question-horizontal {
+            font-size: 1.5em;
+            font-weight: bold;
             color: #333;
+            margin-bottom: 10px;
         }
         
         .question-vertical {
@@ -189,10 +198,9 @@
             color: #333;
             text-align: right;
             line-height: 1.2;
-            padding: 10px;
+            padding: 10px 20px;
             border: 2px solid #ddd;
             border-radius: 10px;
-            margin: 20px auto;
             display: inline-block;
         }
         
@@ -229,6 +237,9 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .choice-btn:hover {
@@ -565,13 +576,6 @@
                     <option value="30">30문제</option>
                 </select>
             </div>
-            <div class="input-group">
-                <label for="layoutType">문제 표시 형식을 선택하세요:</label>
-                <select id="layoutType">
-                    <option value="가로형">가로형</option>
-                    <option value="세로형">세로형</option>
-                </select>
-            </div>
             <div class="setup-controls">
                 <button onclick="showMainMenu()" class="back-btn">뒤로 가기</button>
                 <button onclick="beginQuiz()" class="start-quiz-btn">🎮 퀴즈 시작하기</button>
@@ -698,24 +702,17 @@
 
         // 세로형 문제 HTML 생성 함수
         function getVerticalProblemHtml(problem) {
-            const layoutType = document.getElementById('layoutType').value;
-            if (layoutType !== '세로형') {
-                return `<div class="question" id="questionText">${problem.question}</div>`;
-            }
-
             const parts = problem.question.match(/(\d+)\s*([+\-×÷])\s*(\d+)/);
             if (!parts) {
-                return `<div class="question" id="questionText">${problem.question}</div>`;
+                return null;
             }
 
             const num1 = parts[1];
             const op = parts[2];
             const num2 = parts[3];
 
-            // 최대 자릿수 구하기
             const maxLength = Math.max(num1.length, num2.length);
 
-            // 각 숫자를 공백으로 패딩하여 정렬
             const paddedNum1 = num1.padStart(maxLength, ' ');
             const paddedNum2 = num2.padStart(maxLength, ' ');
             
@@ -730,7 +727,7 @@
                 </div>
             `;
         }
-
+        
         // 문제 표시 함수
         function displayQuestion() {
             const questionData = quizData[currentQuestionIndex];
@@ -742,14 +739,30 @@
             progressBar.style.width = `${((currentQuestionIndex + 1) / quizData.length) * 100}%`;
             nextBtn.style.display = 'none';
 
-            // 세로형 문제 표시
-            questionDisplay.innerHTML = getVerticalProblemHtml(questionData);
+            let questionHtml = '';
+            
+            // 연산 문제만 가로/세로 동시 표시
+            const isArithmetic = ['덧셈', '뺄셈', '곱셈', '나눗셈', '혼합'].includes(document.getElementById('problemType').value);
+            
+            if (isArithmetic) {
+                const verticalHtml = getVerticalProblemHtml(questionData);
+                questionHtml = `
+                    <div class="question-wrapper">
+                        <div class="question-horizontal">${questionData.question}</div>
+                        ${verticalHtml ? verticalHtml : ''}
+                    </div>
+                `;
+            } else {
+                questionHtml = `<div class="question-horizontal">${questionData.question}</div>`;
+            }
+            
+            questionDisplay.innerHTML = questionHtml;
             
             choicesContainer.innerHTML = '';
-            questionData.choices.forEach(choice => {
+            questionData.choices.forEach((choice, index) => {
                 const button = document.createElement('button');
                 button.className = 'choice-btn';
-                button.textContent = choice;
+                button.innerHTML = `<span>${index + 1}.</span>&nbsp;${choice}`;
                 button.onclick = () => selectChoice(button, choice, questionData.answer);
                 choicesContainer.appendChild(button);
             });
@@ -760,13 +773,13 @@
             const choices = document.querySelectorAll('.choice-btn');
             choices.forEach(button => {
                 button.disabled = true;
-                if (button.textContent === correctAnswer.toString()) {
+                if (button.textContent.includes(correctAnswer.toString())) {
                     button.classList.add('correct');
                 } else {
                     button.classList.add('wrong');
                 }
             });
-
+            
             if (selectedAnswer.toString() === correctAnswer.toString()) {
                 selectedButton.classList.add('correct');
                 correctCount++;
