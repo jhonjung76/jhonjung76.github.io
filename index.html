@@ -177,39 +177,41 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        /* 가로형 문제 스타일 */
         .question {
             font-size: 1.5em;
             margin-bottom: 20px;
             color: #333;
         }
         
-        /* 세로형 문제 컨테이너 스타일 */
-        .problem-vertical-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end; /* 오른쪽 정렬 */
-            font-family: 'Courier New', Courier, monospace; /* 고정폭 글꼴로 가독성 향상 */
-            font-size: 2em;
+        .question-vertical {
+            font-size: 2.5em;
             font-weight: bold;
+            color: #333;
+            text-align: right;
             line-height: 1.2;
-            margin-bottom: 20px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: inline-block;
         }
         
-        .problem-vertical-container .line {
+        .question-vertical .problem-line {
+            display: block;
+        }
+        
+        .question-vertical .operator-line {
             display: flex;
             justify-content: flex-end;
-            width: 100%;
+            align-items: center;
         }
-        
-        .problem-vertical-container .operator {
-            margin-right: 10px;
-        }
-        
-        .problem-vertical-container .separator {
-            width: 100%;
-            border-bottom: 2px solid #667eea;
-            margin: 5px 0;
+
+        .question-image {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
         }
 
         .choices {
@@ -217,17 +219,6 @@
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
-        }
-        
-        /* 세로형 레이아웃을 위한 스타일 추가 */
-        .choices.vertical-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .choices.vertical-layout .choice-btn {
-            width: 100%;
         }
 
         .choice-btn {
@@ -485,14 +476,15 @@
             height: 100%;
             transition: width 0.3s ease;
         }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="title">🎯 수학 퀴즈 앱</h1>
         
-        <div id="mainMenu" class="menu quiz-section active">
-            <button onclick="showQuizSetup()">🎮 퀴즈 시작</button>
+        <div id="mainMenu" class="menu">
+            <button onclick="startQuiz()">🎮 퀴즈 시작</button>
             <button onclick="showRecords()">📋 기록 보기</button>
         </div>
 
@@ -574,10 +566,10 @@
                 </select>
             </div>
             <div class="input-group">
-                <label for="layoutType">문제 보기 형식:</label>
+                <label for="layoutType">문제 표시 형식을 선택하세요:</label>
                 <select id="layoutType">
-                    <option value="horizontal">가로형</option>
-                    <option value="vertical">세로형</option>
+                    <option value="가로형">가로형</option>
+                    <option value="세로형">세로형</option>
                 </select>
             </div>
             <div class="setup-controls">
@@ -610,6 +602,7 @@
                 <div class="explanation-title">틀린 문제 해설 및 풀이 방법</div>
                 <div id="wrongAnswersContainer"></div>
             </div>
+            
             <button onclick="showMainMenu()" class="center-back-btn">🏠 메인으로 돌아가기</button>
         </div>
 
@@ -621,14 +614,375 @@
             <button onclick="showMainMenu()" class="back-btn">뒤로 가기</button>
         </div>
     </div>
-    <script>
-        let currentQuestionIndex = 0;
-        let score = 0;
-        let questions = [];
-        let records = JSON.parse(localStorage.getItem('quizRecords')) || [];
-        let wrongAnswers = [];
-        let userSuggestions = JSON.parse(localStorage.getItem('userSuggestions')) || [];
 
+    <script>
+        // 전역 변수
+        let quizData = [];
+        let currentQuestionIndex = 0;
+        let correctCount = 0;
+        let wrongAnswers = [];
+        let records = JSON.parse(localStorage.getItem('mathQuizRecords')) || [];
+        let userSuggestions = JSON.parse(localStorage.getItem('mathQuizUserSuggestions')) || [];
+
+        // 섹션 전환 함수
+        function showSection(sectionId) {
+            document.querySelectorAll('.quiz-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        // 퀴즈 시작 버튼
+        function startQuiz() {
+            showSection('quizSetup');
+        }
+
+        // 퀴즈 설정 완료 후 퀴즈 시작
+        function beginQuiz() {
+            const userName = document.getElementById('userName').value.trim();
+            if (!userName) {
+                alert('이름을 입력해주세요.');
+                return;
+            }
+
+            const grade = document.getElementById('grade').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const problemType = document.getElementById('problemType').value;
+            const problemCount = parseInt(document.getElementById('problemCount').value);
+
+            // 사용자 정보 저장 (중복 제거)
+            if (!userSuggestions.some(user => user.name === userName)) {
+                userSuggestions.push({ name: userName, grade: grade });
+                localStorage.setItem('mathQuizUserSuggestions', JSON.stringify(userSuggestions));
+            }
+
+            quizData = generateQuiz(grade, difficulty, problemType, problemCount);
+            currentQuestionIndex = 0;
+            correctCount = 0;
+            wrongAnswers = [];
+            
+            document.getElementById('nextBtn').style.display = 'none';
+
+            showSection('quizProgress');
+            displayQuestion();
+        }
+
+        // 퀴즈 데이터 생성 함수
+        function generateQuiz(grade, difficulty, problemType, problemCount) {
+            const quiz = [];
+            for (let i = 0; i < problemCount; i++) {
+                let problem;
+                switch(problemType) {
+                    case '덧셈': problem = generateAdditionProblem(grade, difficulty); break;
+                    case '뺄셈': problem = generateSubtractionProblem(grade, difficulty); break;
+                    case '곱셈': problem = generateMultiplicationProblem(grade, difficulty); break;
+                    case '나눗셈': problem = generateDivisionProblem(grade, difficulty); break;
+                    case '혼합': problem = generateMixedProblem(grade, difficulty); break;
+                    case '소인수분해': problem = generatePrimeFactorizationProblem(grade, difficulty); break;
+                    case '정수와유리수': problem = generateIntegerProblem(grade, difficulty); break;
+                    case '일차방정식': problem = generateLinearEquationProblem(grade, difficulty); break;
+                    case '좌표평면': problem = generateCoordinateProblem(grade, difficulty); break;
+                    case '비례': problem = generateProportionalProblem(grade, difficulty); break;
+                    case '기본도형': problem = generateGeometryProblem(grade, difficulty); break;
+                    case '다각형': problem = generatePolygonProblem(grade, difficulty); break;
+                    case '원과부채꼴': problem = generateCircleProblem(grade, difficulty); break;
+                    case '입체도형': problem = generateSolidProblem(grade, difficulty); break;
+                    case '회전체': problem = generateRevolutionSolidProblem(grade, difficulty); break;
+                    case '통계': problem = generateStatisticsProblem(grade, difficulty); break;
+                    case '중1혼합': problem = generateMiddleSchoolMixedProblem(grade, difficulty); break;
+                }
+                quiz.push(problem);
+            }
+            return quiz;
+        }
+
+        // 세로형 문제 HTML 생성 함수
+        function getVerticalProblemHtml(problem) {
+            const layoutType = document.getElementById('layoutType').value;
+            if (layoutType !== '세로형') {
+                return `<div class="question" id="questionText">${problem.question}</div>`;
+            }
+
+            const parts = problem.question.match(/(\d+)\s*([+\-×÷])\s*(\d+)/);
+            if (!parts) {
+                return `<div class="question" id="questionText">${problem.question}</div>`;
+            }
+
+            const num1 = parts[1];
+            const op = parts[2];
+            const num2 = parts[3];
+
+            // 최대 자릿수 구하기
+            const maxLength = Math.max(num1.length, num2.length);
+
+            // 각 숫자를 공백으로 패딩하여 정렬
+            const paddedNum1 = num1.padStart(maxLength, ' ');
+            const paddedNum2 = num2.padStart(maxLength, ' ');
+            
+            return `
+                <div class="question-vertical">
+                    <span class="problem-line">${paddedNum1}</span>
+                    <div class="operator-line">
+                        <span>${op}</span>
+                        <span>${paddedNum2}</span>
+                    </div>
+                    <hr style="border: 1px solid #333; margin: 5px 0;">
+                </div>
+            `;
+        }
+
+        // 문제 표시 함수
+        function displayQuestion() {
+            const questionData = quizData[currentQuestionIndex];
+            const questionDisplay = document.getElementById('questionDisplay');
+            const choicesContainer = document.getElementById('choicesContainer');
+            const nextBtn = document.getElementById('nextBtn');
+            const progressBar = document.getElementById('progressBar');
+
+            progressBar.style.width = `${((currentQuestionIndex + 1) / quizData.length) * 100}%`;
+            nextBtn.style.display = 'none';
+
+            // 세로형 문제 표시
+            questionDisplay.innerHTML = getVerticalProblemHtml(questionData);
+            
+            choicesContainer.innerHTML = '';
+            questionData.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.className = 'choice-btn';
+                button.textContent = choice;
+                button.onclick = () => selectChoice(button, choice, questionData.answer);
+                choicesContainer.appendChild(button);
+            });
+        }
+
+        // 답변 선택 함수
+        function selectChoice(selectedButton, selectedAnswer, correctAnswer) {
+            const choices = document.querySelectorAll('.choice-btn');
+            choices.forEach(button => {
+                button.disabled = true;
+                if (button.textContent === correctAnswer.toString()) {
+                    button.classList.add('correct');
+                } else {
+                    button.classList.add('wrong');
+                }
+            });
+
+            if (selectedAnswer.toString() === correctAnswer.toString()) {
+                selectedButton.classList.add('correct');
+                correctCount++;
+            } else {
+                selectedButton.classList.add('wrong');
+                wrongAnswers.push({
+                    question: quizData[currentQuestionIndex].question,
+                    correctAnswer: correctAnswer,
+                    selectedAnswer: selectedAnswer,
+                    type: document.getElementById('problemType').value
+                });
+            }
+
+            document.getElementById('nextBtn').style.display = 'block';
+        }
+
+        // 다음 문제로 이동
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                displayQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        // 결과 표시 함수
+        function showResult() {
+            showSection('quizResult');
+            const scoreText = document.getElementById('scoreText');
+            const resultMessage = document.getElementById('resultMessage');
+            const explanationSection = document.getElementById('explanationSection');
+            const wrongAnswersContainer = document.getElementById('wrongAnswersContainer');
+            const totalProblems = quizData.length;
+
+            const score = Math.round((correctCount / totalProblems) * 100);
+            scoreText.textContent = `${score}점`;
+
+            if (score === 100) {
+                resultMessage.textContent = '🎉 100점! 완벽해요! 🎉';
+            } else if (score >= 70) {
+                resultMessage.textContent = '👍 잘했어요! 조금만 더 노력해 봐요.';
+            } else {
+                resultMessage.textContent = '🤔 괜찮아요. 다시 도전해 봐요!';
+            }
+
+            // 기록 저장
+            const userName = document.getElementById('userName').value;
+            const date = new Date().toLocaleString();
+            records.push({
+                userName: userName,
+                score: score,
+                correct: correctCount,
+                wrong: totalProblems - correctCount,
+                date: date
+            });
+            localStorage.setItem('mathQuizRecords', JSON.stringify(records));
+
+            // 틀린 문제 해설 표시
+            wrongAnswersContainer.innerHTML = '';
+            if (wrongAnswers.length > 0) {
+                explanationSection.classList.add('show');
+                wrongAnswers.forEach(item => {
+                    const explanationHtml = getExplanationHtml(item);
+                    wrongAnswersContainer.innerHTML += `
+                        <div class="wrong-answer-item">
+                            <div class="wrong-answer-question">문제: ${item.question}</div>
+                            <div class="wrong-answer-details">
+                                <span>내가 선택한 답: ${item.selectedAnswer}</span>
+                                <span>정답: ${item.correctAnswer}</span>
+                            </div>
+                            <div class="explanation-content">${explanationHtml}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                explanationSection.classList.remove('show');
+            }
+        }
+
+        // 해설 HTML 생성 함수
+        function getExplanationHtml(item) {
+            let explanation = '';
+            let tip = '';
+            switch(item.type) {
+                case '덧셈':
+                    explanation = `
+                        <div class="explanation-step">덧셈은 두 수를 합하는 연산입니다.</div>
+                        <div class="explanation-step">일의 자리부터 시작해 각 자리의 수를 더하고, 받아올림이 있다면 다음 자리로 넘겨줍니다.</div>
+                    `;
+                    tip = '세로로 적고 각 자리수를 맞춰 더하면 실수를 줄일 수 있어요.';
+                    break;
+                case '뺄셈':
+                    explanation = `
+                        <div class="explanation-step">뺄셈은 두 수의 차이를 구하는 연산입니다.</div>
+                        <div class="explanation-step">일의 자리부터 시작해 아래 수를 윗수에서 빼줍니다. 윗수가 작다면 앞 자리에서 10을 빌려와 계산합니다.</div>
+                    `;
+                    tip = '받아내림이 필요한 경우, 윗자리의 수를 하나 줄이는 것을 잊지 마세요.';
+                    break;
+                case '곱셈':
+                    explanation = `
+                        <div class="explanation-step">곱셈은 같은 수를 여러 번 더하는 것을 간단히 나타낸 것입니다.</div>
+                        <div class="explanation-step">한 자리씩 곱하고, 자릿수를 맞춰 더해줍니다.</div>
+                    `;
+                    tip = '구구단을 정확하게 외우는 것이 가장 중요합니다.';
+                    break;
+                case '나눗셈':
+                    explanation = `
+                        <div class="explanation-step">나눗셈은 어떤 수를 똑같이 나누는 연산입니다.</div>
+                        <div class="explanation-step">나누는 수가 몇 번 들어가는지 확인하고, 몫과 나머지를 계산합니다.</div>
+                    `;
+                    tip = '곱셈과 뺄셈을 함께 사용하므로, 두 연산에 능숙해야 해요.';
+                    break;
+                case '혼합':
+                    explanation = `
+                        <div class="explanation-step">덧셈, 뺄셈, 곱셈, 나눗셈이 섞여 있는 문제입니다.</div>
+                        <div class="explanation-step">곱셈과 나눗셈을 먼저 계산하고, 그 다음 덧셈과 뺄셈을 순서대로 계산해야 합니다.</div>
+                    `;
+                    tip = '연산의 순서를 잊지 마세요. 괄호가 있다면 괄호 안을 먼저 계산해야 합니다.';
+                    break;
+                case '소인수분해':
+                    explanation = `
+                        <div class="explanation-step">소인수분해는 자연수를 소수들의 곱으로 나타내는 것입니다.</div>
+                        <div class="explanation-step">가장 작은 소수부터 시작해 더 이상 나눠지지 않을 때까지 반복해서 나눕니다.</div>
+                    `;
+                    tip = '소수는 1과 자기 자신만으로 나눠지는 수(예: 2, 3, 5, 7)입니다.';
+                    break;
+                case '정수와유리수':
+                    explanation = `
+                        <div class="explanation-step">양수, 음수, 0을 포함한 수를 정수라고 합니다.</div>
+                        <div class="explanation-step">부호를 포함한 덧셈, 뺄셈, 곱셈, 나눗셈 규칙을 정확히 알아야 합니다.</div>
+                    `;
+                    tip = '절댓값은 수직선에서 0으로부터 떨어진 거리를 의미합니다.';
+                    break;
+                case '일차방정식':
+                    explanation = `
+                        <div class="explanation-step">일차방정식은 미지수(x)의 최고차항이 1인 등식입니다.</div>
+                        <div class="explanation-step">등식의 양변에 같은 수를 더하거나, 빼거나, 곱하거나, 0이 아닌 수로 나누어도 등식은 성립한다는 원리를 이용해 x의 값을 구합니다.</div>
+                    `;
+                    tip = '미지수 x는 좌변으로, 상수항은 우변으로 이항하여 정리하세요.';
+                    break;
+                case '좌표평면':
+                    explanation = `
+                        <div class="explanation-step">좌표평면은 수직선 2개를 직교하게 놓아 평면 위의 점의 위치를 나타낸 것입니다.</div>
+                        <div class="explanation-step">점의 좌표는 (x좌표, y좌표) 순서로 나타냅니다.</div>
+                    `;
+                    tip = '좌표를 나타내는 순서 (x, y)를 헷갈리지 마세요.';
+                    break;
+                case '비례':
+                    explanation = `
+                        <div class="explanation-step">정비례는 x가 2배, 3배가 될 때 y도 2배, 3배가 되는 관계입니다. (y = ax)</div>
+                        <div class="explanation-step">반비례는 x가 2배, 3배가 될 때 y는 1/2배, 1/3배가 되는 관계입니다. (y = a/x)</div>
+                    `;
+                    tip = '정비례 그래프는 원점을 지나는 직선, 반비례 그래프는 쌍곡선 형태입니다.';
+                    break;
+                case '기본도형':
+                    explanation = `
+                        <div class="explanation-step">점, 선, 면 등 도형의 기본 요소를 이해해야 합니다.</div>
+                        <div class="explanation-step">각, 평행선, 수선 등 다양한 개념을 정확히 알아야 합니다.</div>
+                    `;
+                    tip = '각의 크기, 도형의 성질 등을 다시 복습해 보세요.';
+                    break;
+                case '다각형':
+                    explanation = `
+                        <div class="explanation-step">다각형은 여러 개의 선분으로 둘러싸인 평면 도형입니다.</div>
+                        <div class="explanation-step">내각의 합, 대각선의 개수 등 공식을 정확하게 기억해야 합니다.</div>
+                    `;
+                    tip = '정다각형의 성질은 모든 변의 길이와 내각의 크기가 같다는 것입니다.';
+                    break;
+                case '원과부채꼴':
+                    explanation = `
+                        <div class="explanation-step">원은 한 점에서 같은 거리에 있는 모든 점의 집합입니다.</div>
+                        <div class="explanation-step">부채꼴의 넓이와 호의 길이는 원의 넓이, 둘레와 비례 관계에 있습니다.</div>
+                    `;
+                    tip = '원의 넓이는 πr², 원의 둘레는 2πr 입니다.';
+                    break;
+                case '입체도형':
+                    explanation = `
+                        <div class="explanation-step">각기둥, 각뿔, 원기둥, 원뿔 등의 입체도형의 특징을 이해해야 합니다.</div>
+                        <div class="explanation-step">각 입체도형의 꼭짓점, 모서리, 면의 개수를 정확히 알아야 합니다.</div>
+                    `;
+                    tip = '정육면체는 모든 면이 정사각형인 각기둥입니다.';
+                    break;
+                case '회전체':
+                    explanation = `
+                        <div class="explanation-step">회전체는 평면도형을 한 직선을 축으로 하여 1회전 시켰을 때 생기는 입체도형입니다.</div>
+                        <div class="explanation-step">원기둥, 원뿔, 구 등이 대표적인 회전체입니다.</div>
+                    `;
+                    tip = '회전축을 포함하는 평면으로 자른 단면은 합동인 도형이 됩니다.';
+                    break;
+                case '통계':
+                    explanation = `
+                        <div class="explanation-step">통계는 데이터를 수집하고 정리, 분석하여 얻은 결론을 바탕으로 현상을 이해하고 예측하는 학문입니다.</div>
+                        <div class="explanation-step">줄기와 잎 그림, 도수분포표, 히스토그램, 도수분포 다각형 등을 정확히 이해해야 합니다.</div>
+                    `;
+                    tip = '통계 문제에서는 데이터를 정확히 읽고 계산하는 것이 중요합니다.';
+                    break;
+                case '중1혼합':
+                    explanation = `
+                        <div class="explanation-step">중학교 1학년 과정의 다양한 문제들이 섞여 있습니다.</div>
+                        <div class="explanation-step">각 단원의 핵심 개념을 정확히 이해하고 있어야 합니다.</div>
+                    `;
+                    tip = '틀린 문제의 단원 개념을 다시 복습하고 관련 문제를 더 풀어보세요.';
+                    break;
+                default:
+                    explanation = `
+                        <div class="explanation-step">문제를 다시 한 번 차근차근 읽어보세요.</div>
+                        <div class="explanation-step">계산 과정을 단계별로 확인해보세요.</div>
+                        <div class="explanation-step">비슷한 문제를 더 많이 연습해보세요.</div>
+                    `;
+                    tip = '기본 개념을 다시 정리하고 연습 문제를 많이 풀어보세요.';
+            }
+            
+            return explanation + `<div class="tip-box">💡 팁: ${tip}</div>`;
+        }
+        
         // 문제 생성 함수들
         function generateAdditionProblem(grade, difficulty) {
             let num1, num2;
@@ -638,16 +992,15 @@
             } else if (grade >= 3 && grade <= 4) {
                 num1 = Math.floor(Math.random() * 900) + 100;
                 num2 = Math.floor(Math.random() * 900) + 100;
-            } else { // 5학년 이상
+            } else {
                 num1 = Math.floor(Math.random() * 9000) + 1000;
                 num2 = Math.floor(Math.random() * 9000) + 1000;
             }
-            const question = `${num1} + ${num2} = ?`;
             const answer = num1 + num2;
-            const choices = generateChoices(answer, difficulty);
-            return { question, num1, num2, operator: '+', answer, choices };
+            const question = `${num1} + ${num2}`;
+            return { question: question, answer: answer, choices: generateChoices(answer) };
         }
-
+        
         function generateSubtractionProblem(grade, difficulty) {
             let num1, num2;
             if (grade >= 1 && grade <= 2) {
@@ -656,111 +1009,78 @@
             } else if (grade >= 3 && grade <= 4) {
                 num1 = Math.floor(Math.random() * 900) + 100;
                 num2 = Math.floor(Math.random() * (num1 - 100)) + 100;
-            } else { // 5학년 이상
+            } else {
                 num1 = Math.floor(Math.random() * 9000) + 1000;
                 num2 = Math.floor(Math.random() * (num1 - 1000)) + 1000;
             }
-            const question = `${num1} - ${num2} = ?`;
             const answer = num1 - num2;
-            const choices = generateChoices(answer, difficulty);
-            return { question, num1, num2, operator: '-', answer, choices };
+            const question = `${num1} - ${num2}`;
+            return { question: question, answer: answer, choices: generateChoices(answer) };
         }
 
         function generateMultiplicationProblem(grade, difficulty) {
             let num1, num2;
             if (grade >= 1 && grade <= 2) {
-                num1 = Math.floor(Math.random() * 8) + 2;
-                num2 = Math.floor(Math.random() * 8) + 2;
+                num1 = Math.floor(Math.random() * 9) + 1;
+                num2 = Math.floor(Math.random() * 9) + 1;
             } else if (grade >= 3 && grade <= 4) {
                 num1 = Math.floor(Math.random() * 90) + 10;
-                num2 = Math.floor(Math.random() * 9) + 2;
-            } else { // 5학년 이상
+                num2 = Math.floor(Math.random() * 9) + 1;
+            } else {
                 num1 = Math.floor(Math.random() * 90) + 10;
                 num2 = Math.floor(Math.random() * 90) + 10;
             }
-            const question = `${num1} × ${num2} = ?`;
             const answer = num1 * num2;
-            const choices = generateChoices(answer, difficulty);
-            return { question, num1, num2, operator: '×', answer, choices };
+            const question = `${num1} × ${num2}`;
+            return { question: question, answer: answer, choices: generateChoices(answer) };
         }
 
         function generateDivisionProblem(grade, difficulty) {
             let num1, num2;
             if (grade >= 1 && grade <= 2) {
                 num2 = Math.floor(Math.random() * 8) + 2;
-                num1 = num2 * (Math.floor(Math.random() * 8) + 2);
+                num1 = num2 * (Math.floor(Math.random() * 9) + 1);
             } else if (grade >= 3 && grade <= 4) {
-                num2 = Math.floor(Math.random() * 9) + 2;
+                num2 = Math.floor(Math.random() * 8) + 2;
                 num1 = num2 * (Math.floor(Math.random() * 90) + 10);
-            } else { // 5학년 이상
+            } else {
                 num2 = Math.floor(Math.random() * 90) + 10;
-                num1 = num2 * (Math.floor(Math.random() * 90) + 10);
+                num1 = num2 * (Math.floor(Math.random() * 9) + 1);
             }
-            const question = `${num1} ÷ ${num2} = ?`;
             const answer = num1 / num2;
-            const choices = generateChoices(answer, difficulty);
-            return { question, num1, num2, operator: '÷', answer, choices };
+            const question = `${num1} ÷ ${num2}`;
+            return { question: question, answer: answer, choices: generateChoices(answer) };
         }
-
+        
         function generateMixedProblem(grade, difficulty) {
-            const types = ['+', '-', '×', '÷'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            switch (type) {
-                case '+': return generateAdditionProblem(grade, difficulty);
-                case '-': return generateSubtractionProblem(grade, difficulty);
-                case '×': return generateMultiplicationProblem(grade, difficulty);
-                case '÷': return generateDivisionProblem(grade, difficulty);
+            const operations = ['+', '-', '×', '÷'];
+            const op1 = operations[Math.floor(Math.random() * 4)];
+            const op2 = operations[Math.floor(Math.random() * 4)];
+            
+            let num1 = Math.floor(Math.random() * 20) + 1;
+            let num2 = Math.floor(Math.random() * 20) + 1;
+            let num3 = Math.floor(Math.random() * 20) + 1;
+            
+            let expression;
+            let answer;
+
+            try {
+                expression = `${num1} ${op1} ${num2} ${op2} ${num3}`;
+                // eslint-disable-next-line no-eval
+                answer = eval(expression.replace(/×/g, '*').replace(/÷/g, '/'));
+
+                if (!Number.isInteger(answer) || answer < 0) {
+                    throw new Error('Invalid calculation');
+                }
+            } catch (e) {
+                return generateMixedProblem(grade, difficulty);
             }
+
+            const question = expression.replace(/\*/g, '×').replace(/\//g, '÷');
+            return { question: question, answer: answer, choices: generateChoices(answer) };
         }
 
         // 중학교 1학년 수학 과정 문제 생성 함수들
-        function getPrimeFactors(num) {
-            let factors = [];
-            let d = 2;
-            while (d * d <= num) {
-                if (num % d === 0) {
-                    factors.push(d);
-                    num /= d;
-                } else {
-                    d++;
-                }
-            }
-            if (num > 1) {
-                factors.push(num);
-            }
-            return factors;
-        }
-
-        function getDivisorsCount(num) {
-            const factors = {};
-            let n = num;
-            for (let i = 2; i <= Math.sqrt(n); i++) {
-                while (n % i === 0) {
-                    factors[i] = (factors[i] || 0) + 1;
-                    n /= i;
-                }
-            }
-            if (n > 1) {
-                factors[n] = (factors[n] || 0) + 1;
-            }
-            let count = 1;
-            for (let p in factors) {
-                count *= (factors[p] + 1);
-            }
-            return count;
-        }
-
-        function getGCD(a, b) {
-            while (b) {
-                [a, b] = [b, a % b];
-            }
-            return a;
-        }
-
-        function getLCM(a, b) {
-            return (a * b) / getGCD(a, b);
-        }
-
         function generatePrimeFactorizationProblem(grade, difficulty) {
             let problems = [];
             if (difficulty === '쉬움') {
@@ -775,539 +1095,476 @@
                     '2 × 2 × 3'
                 ];
                 const choices = generateChoicesFromArray([answer, ...wrongAnswers]);
-                return {question: `${num}을 소인수분해하면?`, answer: answer, choices: choices, explanation: `
-                    <div class="explanation-content">
-                        <p>${num}을 소인수로 나누는 과정을 단계별로 진행합니다.</p>
-                        <div class="explanation-step">${num}을 2로 나누면 ${num/2}입니다.</div>
-                        <div class="explanation-step">...나누는 과정을 반복하면 ${num} = ${factors.join(' × ')}가 됩니다.</div>
-                    </div>
-                `};
+                return {question: `${num}을 소인수분해하면?`, answer: answer, choices: choices};
             } else if (difficulty === '보통') {
                 const problemTypes = [
-                    { question: "72의 약수의 개수는?", answer: getDivisorsCount(72) },
-                    { question: "24와 36의 최대공약수는?", answer: getGCD(24, 36) },
-                    { question: "15와 20의 최소공배수는?", answer: getLCM(15, 20) },
+                    {
+                        question: "72의 약수의 개수는?",
+                        answer: getDivisorsCount(72),
+                        wrongAnswers: [getDivisorsCount(72) - 1, getDivisorsCount(72) + 1, getDivisorsCount(60), getDivisorsCount(84)]
+                    },
+                    {
+                        question: "24와 36의 최대공약수는?",
+                        answer: getGCD(24, 36),
+                        wrongAnswers: [getGCD(24, 36) - 1, getGCD(24, 36) + 1, getLCM(24, 36), 12]
+                    },
+                    {
+                        question: "15와 20의 최소공배수는?",
+                        answer: getLCM(15, 20),
+                        wrongAnswers: [getLCM(15, 20) - 1, getLCM(15, 20) + 1, getGCD(15, 20), 60]
+                    },
+                    {
+                        question: "다음 중 2² × 3 × 5의 약수가 아닌 것은?",
+                        answer: "15",
+                        wrongAnswers: ["6", "10", "12", "20"]
+                    }
                 ];
                 const selectedProblem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
-                const choices = generateChoices(selectedProblem.answer, difficulty);
+                const choices = generateChoicesFromArray([selectedProblem.answer, ...selectedProblem.wrongAnswers]);
                 return {question: selectedProblem.question, answer: selectedProblem.answer, choices: choices};
-            } else {
+            } else { // 어려움
                 const problemTypes = [
-                    { question: "두 수의 최대공약수가 12이고 최소공배수가 72일 때, 이 두 수의 합은?", answer: 84 },
-                    { question: "자연수 n에 대하여 n² - n이 6의 배수가 되도록 하는 n의 값 중 가장 작은 값은?", answer: 3 },
-                    { question: "세 수 12, 18, 24의 최대공약수와 최소공배수의 곱은?", answer: 1728 }
+                    {
+                        question: "두 수의 최대공약수가 12이고 최소공배수가 72일 때, 이 두 수의 합은?",
+                        answer: "84",
+                        wrongAnswers: ["72", "96", "108", "120"]
+                    },
+                    {
+                        question: "자연수 n에 대하여 n² - n이 6의 배수가 되도록 하는 n의 값 중 가장 작은 값은?",
+                        answer: "3",
+                        wrongAnswers: ["1", "2", "4", "5"]
+                    },
+                    {
+                        question: "세 수 12, 18, 24의 최대공약수와 최소공배수의 곱은?",
+                        answer: "1728",
+                        wrongAnswers: ["144", "432", "864", "3456"]
+                    }
                 ];
                 const selectedProblem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
-                const choices = generateChoices(selectedProblem.answer, difficulty);
+                const choices = generateChoicesFromArray([selectedProblem.answer, ...selectedProblem.wrongAnswers]);
+                return {question: selectedProblem.question, answer: selectedProblem.answer, choices: choices};
+            }
+        }
+
+        function generateIntegerProblem(grade, difficulty) {
+            if (difficulty === '쉬움') {
+                const a = Math.floor(Math.random() * 20) - 10;
+                const b = Math.floor(Math.random() * 20) - 10;
+                const operations = ['+', '-', '×'];
+                const op = operations[Math.floor(Math.random() * operations.length)];
+                let answer, question;
+                
+                switch(op) {
+                    case '+':
+                        answer = a + b;
+                        question = `${a} + ${b}`;
+                        break;
+                    case '-':
+                        answer = a - b;
+                        question = `${a} - ${b}`;
+                        break;
+                    case '×':
+                        answer = a * b;
+                        question = `${a} × ${b}`;
+                        break;
+                }
+                
+                return {question: question, answer: answer, choices: generateChoices(answer)};
+            } else if (difficulty === '보통') {
+                const problemTypes = [
+                    {
+                        question: "다음 중 정수가 아닌 것은?",
+                        answer: "0.5",
+                        wrongAnswers: ["-3", "0", "7", "-1"]
+                    },
+                    {
+                        question: "|-7| + |3|의 값은?",
+                        answer: "10",
+                        wrongAnswers: ["4", "-4", "-10", "7"]
+                    },
+                    {
+                        question: "다음 중 유리수가 아닌 것은?",
+                        answer: "√2",
+                        wrongAnswers: ["-2/3", "0.25", "5", "-1.5"]
+                    },
+                    {
+                        question: "(-3) + 7 - (-2)의 값은?",
+                        answer: "6",
+                        wrongAnswers: ["2", "4", "8", "12"]
+                    }
+                ];
+                const selectedProblem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+                const choices = generateChoicesFromArray([selectedProblem.answer, ...selectedProblem.wrongAnswers]);
+                return {question: selectedProblem.question, answer: selectedProblem.answer, choices: choices};
+            } else { // 어려움
+                const problemTypes = [
+                    {
+                        question: "a = -2, b = 3일 때, |a| - |b| + |a + b|의 값은?",
+                        answer: "0",
+                        wrongAnswers: ["-2", "2", "4", "6"]
+                    },
+                    {
+                        question: "다음 중 절댓값이 5보다 작은 정수의 개수는?",
+                        answer: "9",
+                        wrongAnswers: ["7", "8", "10", "11"]
+                    },
+                    {
+                        question: "(-2) × 3 + (-4) ÷ 2의 값은?",
+                        answer: "-8",
+                        wrongAnswers: ["-2", "2", "4", "8"]
+                    }
+                ];
+                const selectedProblem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+                const choices = generateChoicesFromArray([selectedProblem.answer, ...selectedProblem.wrongAnswers]);
+                return {question: selectedProblem.question, answer: selectedProblem.answer, choices: choices};
+            }
+        }
+
+        function generateLinearEquationProblem(grade, difficulty) {
+            if (difficulty === '쉬움') {
+                const a = Math.floor(Math.random() * 10) + 1;
+                const b = Math.floor(Math.random() * 20) - 10;
+                const c = Math.floor(Math.random() * 20) - 10;
+                const x = (c - b) / a;
+                if (Number.isInteger(x)) {
+                    return {question: `${a}x + ${b} = ${c}`, answer: x, choices: generateChoices(x)};
+                } else {
+                    return generateLinearEquationProblem(grade, difficulty);
+                }
+            } else if (difficulty === '보통') {
+                const problemTypes = [
+                    {
+                        question: "2(x + 3) = 10일 때, x의 값은?",
+                        answer: "2",
+                        wrongAnswers: ["1", "3", "4", "5"]
+                    },
+                    {
+                        question: "3x - 2 = x + 4일 때, x의 값은?",
+                        answer: "3",
+                        wrongAnswers: ["1", "2", "4", "5"]
+                    },
+                    {
+                        question: "x/2 + 1 = 5일 때, x의 값은?",
+                        answer: "8",
+                        wrongAnswers: ["6", "7", "9", "10"]
+                    },
+                    {
+                        question: "2x + 3 = 3x - 1일 때, x의 값은?",
+                        answer: "4",
+                        wrongAnswers: ["2", "3", "5", "6"]
+                    }
+                ];
+                const selectedProblem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+                const choices = generateChoicesFromArray([selectedProblem.answer, ...selectedProblem.wrongAnswers]);
+                return {question: selectedProblem.question, answer: selectedProblem.answer, choices: choices};
+            } else { // 어려움
+                const problemTypes = [
+                    {
+                        question: "연속하는 세 자연수의 합이 15일 때, 가장 작은 수는?",
+                        answer: "4",
+                        wrongAnswers: ["3", "5", "6", "7"]
+                    },
+                    {
+                        question: "어떤 수의 3배에서 2를 뺀 값이 13일 때, 그 수는?",
+                        answer: "5",
+                        wrongAnswers: ["3", "4", "6", "7"]
+                    },
+                    {
+                        question: "2(x - 1) + 3 = 4x - 1일 때, x의 값은?",
+                        answer: "1",
+                        wrongAnswers: ["0", "2", "3", "4"]
+                    }
+                ];
+                const selectedProblem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+                const choices = generateChoicesFromArray([selectedProblem.answer, ...selectedProblem.wrongAnswers]);
                 return {question: selectedProblem.question, answer: selectedProblem.answer, choices: choices};
             }
         }
         
-        function generateIntegerProblem(grade, difficulty) {
-            const types = ['덧셈', '뺄셈', '곱셈', '나눗셈', '혼합'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            let num1, num2;
-            const positive = Math.random() < 0.5;
+        function generateCoordinateProblem(grade, difficulty) {
+            const x = Math.floor(Math.random() * 20) - 10;
+            const y = Math.floor(Math.random() * 20) - 10;
+            const quadrants = ['제1사분면', '제2사분면', '제3사분면', '제4사분면', 'x축', 'y축', '원점'];
+            let answer;
+            if (x > 0 && y > 0) answer = '제1사분면';
+            else if (x < 0 && y > 0) answer = '제2사분면';
+            else if (x < 0 && y < 0) answer = '제3사분면';
+            else if (x > 0 && y < 0) answer = '제4사분면';
+            else if (x === 0 && y === 0) answer = '원점';
+            else if (x === 0) answer = 'y축';
+            else answer = 'x축';
+            
+            const question = `점 (${x}, ${y})는 어느 사분면에 속하나요?`;
+            const wrongAnswers = quadrants.filter(q => q !== answer);
             
             if (difficulty === '쉬움') {
-                num1 = Math.floor(Math.random() * 20) - 10;
-                num2 = Math.floor(Math.random() * 20) - 10;
+                const choices = generateChoicesFromArray([answer, ...wrongAnswers]);
+                return {question: question, answer: answer, choices: choices};
             } else if (difficulty === '보통') {
-                num1 = Math.floor(Math.random() * 40) - 20;
-                num2 = Math.floor(Math.random() * 40) - 20;
-            } else {
-                num1 = Math.floor(Math.random() * 100) - 50;
-                num2 = Math.floor(Math.random() * 100) - 50;
-            }
-
-            const operators = {
-                '덧셈': (a, b) => a + b,
-                '뺄셈': (a, b) => a - b,
-                '곱셈': (a, b) => a * b,
-                '나눗셈': (a, b) => {
-                    let temp2 = b;
-                    while (temp2 === 0 || num1 % temp2 !== 0) {
-                        temp2 = Math.floor(Math.random() * 20) - 10;
+                const problems = [
+                    {
+                        question: "점 (a, b)가 제2사분면에 있을 때, 점 (-a, b)는 어느 사분면에 있나요?",
+                        answer: "제1사분면",
+                        wrongAnswers: ["제2사분면", "제3사분면", "제4사분면", "x축", "y축"]
+                    },
+                    {
+                        question: "점 (a, b)가 제3사분면에 있을 때, 점 (-b, -a)는 어느 사분면에 있나요?",
+                        answer: "제2사분면",
+                        wrongAnswers: ["제1사분면", "제3사분면", "제4사분면", "x축", "y축"]
                     }
-                    num2 = temp2;
-                    return num1 / num2;
+                ];
+                const problem = problems[Math.floor(Math.random() * problems.length)];
+                return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+            } else { // 어려움
+                const problems = [
+                    {
+                        question: "점 (a, b)가 제4사분면에 있을 때, 점 (b, a)는 어느 사분면에 있나요?",
+                        answer: "제2사분면",
+                        wrongAnswers: ["제1사분면", "제3사분면", "제4사분면", "x축", "y축"]
+                    },
+                    {
+                        question: "두 점 (1, 3)과 (5, y)의 y좌표가 같을 때, 두 점을 이은 선분은 x축과 평행하다.",
+                        answer: "정답",
+                        wrongAnswers: ["오답"]
+                    }
+                ];
+                const problem = problems[Math.floor(Math.random() * problems.length)];
+                return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+            }
+        }
+        
+        function generateProportionalProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "y가 x에 정비례하고 x = 2일 때 y = 4이다. x = 5일 때 y의 값은?",
+                    answer: "10",
+                    wrongAnswers: ["8", "12", "15", "20"]
+                },
+                {
+                    question: "y가 x에 반비례하고 x = 3일 때 y = 4이다. x = 6일 때 y의 값은?",
+                    answer: "2",
+                    wrongAnswers: ["1", "3", "4", "5"]
+                },
+                {
+                    question: "정비례 관계 y = 2x의 그래프가 지나는 점은?",
+                    answer: "(3, 6)",
+                    wrongAnswers: ["(1, 3)", "(-1, -3)", "(2, 5)"]
                 }
-            };
-            
-            const question = `${num1} ${type === '덧셈' ? '+' : type === '뺄셈' ? '-' : type === '곱셈' ? '×' : '÷'} ${num2} = ?`;
-            const answer = operators[type](num1, num2);
-            const choices = generateChoices(answer, difficulty);
-
-            let explanation = `
-                <div class="explanation-content">
-                    <div class="explanation-step">정수의 덧셈과 뺄셈 규칙을 이용합니다.</div>
-                    <div class="explanation-step">같은 부호끼리는 더하고 부호를 그대로, 다른 부호끼리는 절댓값이 큰 수에서 작은 수를 빼고 절댓값이 큰 수의 부호를 따릅니다.</div>
-                    <div class="explanation-step">곱셈과 나눗셈은 부호 규칙에 따라 계산합니다.</div>
-                </div>
-            `;
-            
-            return { question, answer, choices, explanation };
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+        }
+        
+        function generateGeometryProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "평행한 두 직선이 다른 한 직선과 만날 때 생기는 동위각의 크기는?",
+                    answer: "같다",
+                    wrongAnswers: ["다르다", "합이 90도이다", "합이 180도이다"]
+                },
+                {
+                    question: "두 직선이 한 점에서 만날 때 생기는 교각 중 마주 보는 두 각을 무엇이라고 하나요?",
+                    answer: "맞꼭지각",
+                    wrongAnswers: ["동위각", "엇각", "평각"]
+                }
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+        }
+        
+        function generatePolygonProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "n각형의 내각의 크기의 합은?",
+                    answer: "(n-2)×180°",
+                    wrongAnswers: ["n×180°", "360°", "n×360°"]
+                },
+                {
+                    question: "한 꼭짓점에서 그을 수 있는 n각형의 대각선 개수는?",
+                    answer: "n-3",
+                    wrongAnswers: ["n-2", "n-1", "n"]
+                }
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+        }
+        
+        function generateCircleProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "원의 둘레가 10π일 때, 반지름의 길이는?",
+                    answer: "5",
+                    wrongAnswers: ["2", "4", "8", "10"]
+                },
+                {
+                    question: "반지름이 6cm인 원의 넓이는?",
+                    answer: "36π cm²",
+                    wrongAnswers: ["12π cm²", "6π cm²", "18π cm²"]
+                }
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+        }
+        
+        function generateSolidProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "면이 6개, 모서리가 12개, 꼭짓점이 8개인 입체도형은?",
+                    answer: "육면체",
+                    wrongAnswers: ["삼각뿔", "원기둥", "사각기둥"]
+                },
+                {
+                    question: "밑면이 삼각형이고 옆면이 모두 사각형인 입체도형은?",
+                    answer: "삼각기둥",
+                    wrongAnswers: ["삼각뿔", "사각기둥", "오각기둥"]
+                }
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
         }
 
-        // 선택지 생성 함수 (기존)
-        function generateChoices(answer, difficulty) {
-            const choices = new Set();
-            choices.add(answer);
-            const numChoices = 4;
-            let offset = 1;
-            if (difficulty === '보통') offset = 3;
-            if (difficulty === '어려움') offset = 5;
+        function generateRevolutionSolidProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "직사각형을 한 변을 축으로 회전시킬 때 만들어지는 입체도형은?",
+                    answer: "원기둥",
+                    wrongAnswers: ["원뿔", "구", "삼각뿔"]
+                },
+                {
+                    question: "직각삼각형을 직각을 낀 한 변을 축으로 회전시킬 때 만들어지는 입체도형은?",
+                    answer: "원뿔",
+                    wrongAnswers: ["원기둥", "구", "삼각뿔"]
+                }
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+        }
+        
+        function generateStatisticsProblem(grade, difficulty) {
+            const problemTypes = [
+                {
+                    question: "도수분포표에서 각 계급의 중앙값을 나타내는 점을 찍어 선분으로 이은 그래프는?",
+                    answer: "도수분포 다각형",
+                    wrongAnswers: ["히스토그램", "줄기와 잎 그림", "원그래프"]
+                },
+                {
+                    question: "자료를 몇 개의 계급으로 나누고, 각 계급에 속하는 자료의 개수를 조사하여 나타낸 표는?",
+                    answer: "도수분포표",
+                    wrongAnswers: ["줄기와 잎 그림", "히스토그램", "원그래프"]
+                }
+            ];
+            const problem = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+            return { question: problem.question, answer: problem.answer, choices: generateChoicesFromArray([problem.answer, ...problem.wrongAnswers]) };
+        }
+        
+        function generateMiddleSchoolMixedProblem(grade, difficulty) {
+            const problemGenerators = [
+                generatePrimeFactorizationProblem,
+                generateIntegerProblem,
+                generateLinearEquationProblem,
+                generateCoordinateProblem,
+                generateProportionalProblem,
+                generateGeometryProblem,
+                generatePolygonProblem,
+                generateCircleProblem,
+                generateSolidProblem,
+                generateRevolutionSolidProblem,
+                generateStatisticsProblem
+            ];
+            const randomGenerator = problemGenerators[Math.floor(Math.random() * problemGenerators.length)];
+            return randomGenerator(grade, difficulty);
+        }
 
-            while (choices.size < numChoices) {
-                let wrongAnswer = answer + (Math.floor(Math.random() * offset * 2) - offset);
-                if (wrongAnswer !== answer) {
-                    choices.add(wrongAnswer);
+        // 선택지 생성 함수
+        function generateChoices(correctAnswer) {
+            const choices = new Set();
+            choices.add(correctAnswer);
+            while (choices.size < 4) {
+                let newChoice;
+                const diff = Math.floor(Math.random() * 20) + 1;
+                const sign = Math.random() < 0.5 ? 1 : -1;
+                newChoice = correctAnswer + sign * diff;
+                if (newChoice !== correctAnswer) {
+                    choices.add(newChoice);
                 }
             }
             return Array.from(choices).sort(() => Math.random() - 0.5);
         }
-
-        // 선택지 생성 함수 (배열에서)
+        
         function generateChoicesFromArray(arr) {
-            const choices = new Set();
-            arr.forEach(item => choices.add(item));
-            const numChoices = 4;
-            while (choices.size < numChoices) {
-                let randomItem = Math.random().toString(36).substring(7); // 임의의 문자열
-                choices.add(randomItem);
-            }
-            return Array.from(choices).sort(() => Math.random() - 0.5);
+            const shuffled = [...arr].sort(() => Math.random() - 0.5);
+            return shuffled.slice(0, 4);
         }
 
-        function createProblem(type, grade, difficulty) {
-            switch (type) {
-                case '덧셈': return generateAdditionProblem(grade, difficulty);
-                case '뺄셈': return generateSubtractionProblem(grade, difficulty);
-                case '곱셈': return generateMultiplicationProblem(grade, difficulty);
-                case '나눗셈': return generateDivisionProblem(grade, difficulty);
-                case '혼합': return generateMixedProblem(grade, difficulty);
-                case '소인수분해': return generatePrimeFactorizationProblem(grade, difficulty);
-                case '정수와유리수': return generateIntegerProblem(grade, difficulty);
-                // 여기에 추가적인 문제 종류 생성 함수를 호출하도록 구현할 수 있습니다.
-                default: return generateMixedProblem(grade, difficulty);
-            }
-        }
-        
-        // 주요 기능 함수들
-        function showQuizSetup() {
-            showSection('quizSetup');
-        }
+        // 이름 제안 기능
+        const userNameInput = document.getElementById('userName');
+        const suggestionsDropdown = document.getElementById('suggestionsDropdown');
 
-        function beginQuiz() {
-            const userName = document.getElementById('userName').value;
-            if (!userName) {
-                alert('이름을 입력해주세요!');
-                return;
-            }
-            
-            saveUserSuggestion(userName);
-            
-            const problemCount = document.getElementById('problemCount').value;
-            const difficulty = document.getElementById('difficulty').value;
-            const problemType = document.getElementById('problemType').value;
-            const grade = parseInt(document.getElementById('grade').value);
-            
-            questions = [];
-            wrongAnswers = [];
-            for (let i = 0; i < problemCount; i++) {
-                questions.push(createProblem(problemType, grade, difficulty));
-            }
-
-            currentQuestionIndex = 0;
-            score = 0;
-            showSection('quizProgress');
-            displayQuestion();
-        }
-
-        function displayQuestion() {
-            const progress = (currentQuestionIndex / questions.length) * 100;
-            document.getElementById('progressBar').style.width = `${progress}%`;
-            
-            if (currentQuestionIndex >= questions.length) {
-                endQuiz();
-                return;
-            }
-            
-            const questionData = questions[currentQuestionIndex];
-            const questionDisplay = document.getElementById('questionDisplay');
-            const choicesContainer = document.getElementById('choicesContainer');
-            
-            questionDisplay.innerHTML = '';
-            choicesContainer.innerHTML = '';
-            
-            const layoutType = document.getElementById('layoutType').value;
-
-            // 문제 표시 로직
-            if (layoutType === 'vertical' && questionData.operator) {
-                const problemContainer = document.createElement('div');
-                problemContainer.classList.add('problem-vertical-container');
-                problemContainer.innerHTML = `
-                    <div class="line">${questionData.num1}</div>
-                    <div class="line">
-                        <span class="operator">${questionData.operator}</span>
-                        ${questionData.num2}
-                    </div>
-                    <div class="separator"></div>
-                `;
-                questionDisplay.appendChild(problemContainer);
-                questionDisplay.classList.remove('question'); // 가로형 문제 스타일 제거
-            } else {
-                questionDisplay.innerHTML = `<div class="question" id="questionText">${questionData.question}</div>`;
-                questionDisplay.classList.add('question'); // 가로형 문제 스타일 적용
-            }
-
-            // 정답 선택지 표시 로직
-            if (layoutType === 'vertical') {
-                choicesContainer.classList.add('vertical-layout');
-            } else {
-                choicesContainer.classList.remove('vertical-layout');
-            }
-            
-            questionData.choices.forEach(choice => {
-                const button = document.createElement('button');
-                button.classList.add('choice-btn');
-                button.innerText = choice;
-                button.onclick = () => checkAnswer(button, choice, questionData.answer);
-                choicesContainer.appendChild(button);
-            });
-            
-            document.getElementById('nextBtn').style.display = 'none';
-        }
-
-        function checkAnswer(button, selectedAnswer, correctAnswer) {
-            const choices = document.querySelectorAll('.choice-btn');
-            choices.forEach(btn => btn.disabled = true);
-            
-            const isCorrect = selectedAnswer == correctAnswer;
-            if (isCorrect) {
-                button.classList.add('correct');
-                score += 10;
-            } else {
-                button.classList.add('wrong');
-                const correctButton = Array.from(choices).find(btn => btn.innerText == correctAnswer);
-                if (correctButton) {
-                    correctButton.classList.add('correct');
+        userNameInput.addEventListener('input', () => {
+            const input = userNameInput.value.toLowerCase();
+            suggestionsDropdown.innerHTML = '';
+            if (input.length > 0) {
+                const filteredSuggestions = userSuggestions.filter(user => 
+                    user.name.toLowerCase().startsWith(input)
+                );
+                
+                if (filteredSuggestions.length > 0) {
+                    suggestionsDropdown.style.display = 'block';
+                    filteredSuggestions.forEach(user => {
+                        const item = document.createElement('div');
+                        item.className = 'suggestion-item';
+                        item.innerHTML = `
+                            <span class="suggestion-name">${user.name}</span>
+                            <span class="suggestion-grade">${user.grade}학년</span>
+                            <button class="delete-btn" onclick="deleteSuggestion(event, '${user.name}')">×</button>
+                        `;
+                        item.addEventListener('click', () => {
+                            userNameInput.value = user.name;
+                            document.getElementById('grade').value = user.grade;
+                            updateGradeDisplay();
+                            suggestionsDropdown.style.display = 'none';
+                        });
+                        suggestionsDropdown.appendChild(item);
+                    });
+                } else {
+                    suggestionsDropdown.style.display = 'none';
                 }
-                wrongAnswers.push({
-                    question: questions[currentQuestionIndex].question,
-                    userAnswer: selectedAnswer,
-                    correctAnswer: correctAnswer,
-                    explanation: questions[currentQuestionIndex].explanation || getExplanation(questions[currentQuestionIndex])
-                });
-            }
-            
-            document.getElementById('nextBtn').style.display = 'block';
-        }
-
-        function nextQuestion() {
-            currentQuestionIndex++;
-            displayQuestion();
-        }
-
-        function endQuiz() {
-            const finalScore = (score / questions.length) * 10;
-            const userName = document.getElementById('userName').value;
-            const grade = document.getElementById('grade').value;
-            
-            const newRecord = {
-                userName: userName,
-                grade: grade,
-                score: finalScore,
-                correct: questions.length - wrongAnswers.length,
-                wrong: wrongAnswers.length,
-                date: new Date().toLocaleDateString('ko-KR')
-            };
-            
-            records.push(newRecord);
-            localStorage.setItem('quizRecords', JSON.stringify(records));
-
-            const scoreText = document.getElementById('scoreText');
-            scoreText.innerText = `점수: ${finalScore}점`;
-            
-            const resultMessage = document.getElementById('resultMessage');
-            if (wrongAnswers.length === 0) {
-                resultMessage.innerText = '아주 잘했어요! 모든 문제를 맞혔습니다!';
             } else {
-                resultMessage.innerText = `총 ${questions.length}문제 중 ${questions.length - wrongAnswers.length}문제를 맞혔습니다.`;
+                suggestionsDropdown.style.display = 'none';
             }
+        });
 
-            // 틀린 문제 해설 표시
-            const explanationSection = document.getElementById('explanationSection');
-            const wrongAnswersContainer = document.getElementById('wrongAnswersContainer');
-            if (wrongAnswers.length > 0) {
-                explanationSection.style.display = 'block';
-                wrongAnswersContainer.innerHTML = wrongAnswers.map(wrong => `
-                    <div class="wrong-answer-item">
-                        <div class="wrong-answer-question">${wrong.question}</div>
-                        <div class="wrong-answer-details">
-                            정답: ${wrong.correctAnswer} <br>
-                            내가 쓴 답: ${wrong.userAnswer}
-                        </div>
-                        ${wrong.explanation || ''}
-                    </div>
-                `).join('');
-            } else {
-                explanationSection.style.display = 'none';
-                wrongAnswersContainer.innerHTML = '';
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.name-suggestions')) {
+                suggestionsDropdown.style.display = 'none';
             }
-
-            showSection('quizResult');
-        }
-
-        function showSection(sectionId) {
-            document.querySelectorAll('.quiz-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(sectionId).classList.add('active');
-        }
+        });
         
-        function showMainMenu() {
-            showSection('mainMenu');
-        }
-        
-        function saveUserSuggestion(userName) {
-            const grade = document.getElementById('grade').value;
-            const existingIndex = userSuggestions.findIndex(user => user.name === userName);
-            if (existingIndex > -1) {
-                userSuggestions.splice(existingIndex, 1);
-            }
-            userSuggestions.unshift({ name: userName, grade: grade });
-            if (userSuggestions.length > 5) {
-                userSuggestions.pop();
-            }
-            localStorage.setItem('userSuggestions', JSON.stringify(userSuggestions));
-            loadUserSuggestions();
+        function deleteSuggestion(event, nameToDelete) {
+            event.stopPropagation();
+            userSuggestions = userSuggestions.filter(user => user.name !== nameToDelete);
+            localStorage.setItem('mathQuizUserSuggestions', JSON.stringify(userSuggestions));
+            userNameInput.dispatchEvent(new Event('input')); // 제안 목록 업데이트
         }
 
         function loadUserSuggestions() {
-            const dropdown = document.getElementById('suggestionsDropdown');
-            const userNameInput = document.getElementById('userName');
-            
-            if (userSuggestions.length > 0) {
-                dropdown.style.display = 'block';
-                dropdown.innerHTML = userSuggestions.map(user => `
-                    <div class="suggestion-item" onclick="selectSuggestion('${user.name}', '${user.grade}')">
-                        <span class="suggestion-name">${user.name}</span>
-                        <span class="suggestion-grade">${user.grade}학년</span>
-                        <button class="delete-btn" onclick="deleteSuggestion(event, '${user.name}')">×</button>
-                    </div>
-                `).join('');
-            } else {
-                dropdown.style.display = 'none';
+            const savedSuggestions = localStorage.getItem('mathQuizUserSuggestions');
+            if (savedSuggestions) {
+                userSuggestions = JSON.parse(savedSuggestions);
             }
-            
-            userNameInput.addEventListener('focus', () => {
-                if (userSuggestions.length > 0) {
-                    dropdown.style.display = 'block';
-                }
-            });
-
-            userNameInput.addEventListener('blur', (e) => {
-                // 관련 요소가 아닌 다른 곳을 클릭했을 때만 숨김
-                if (!dropdown.contains(e.relatedTarget)) {
-                    setTimeout(() => {
-                        dropdown.style.display = 'none';
-                    }, 100);
-                }
-            });
         }
         
-        function selectSuggestion(name, grade) {
-            document.getElementById('userName').value = name;
-            document.getElementById('grade').value = grade;
-            updateGradeDisplay();
-            document.getElementById('suggestionsDropdown').style.display = 'none';
-        }
-        
-        function deleteSuggestion(event, name) {
-            event.stopPropagation(); // 이벤트 버블링 방지
-            userSuggestions = userSuggestions.filter(user => user.name !== name);
-            localStorage.setItem('userSuggestions', JSON.stringify(userSuggestions));
-            loadUserSuggestions();
-        }
-
+        // 학년 표시 업데이트
         function updateGradeDisplay() {
             const gradeSelect = document.getElementById('grade');
             const gradeDisplay = document.getElementById('gradeDisplay');
             const selectedOption = gradeSelect.options[gradeSelect.selectedIndex];
-            
-            if (selectedOption.parentElement.label === '중학교' || selectedOption.parentElement.label === '고등학교') {
-                gradeDisplay.innerText = `선택 학년: ${selectedOption.parentElement.label} ${selectedOption.innerText}`;
-            } else {
-                gradeDisplay.innerText = `선택 학년: ${selectedOption.innerText}`;
-            }
+            const groupLabel = selectedOption.parentElement.label;
+            const gradeText = selectedOption.textContent;
+            gradeDisplay.textContent = `${groupLabel} ${gradeText}`;
         }
         
-        function getExplanation(problemData) {
-            let explanation = '';
-            let tip = '';
-            switch (problemData.problemType) {
-                case '덧셈':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">두 수의 덧셈을 정확하게 계산합니다.</div>
-                            <div class="explanation-step">받아올림이 있는 경우, 윗자리에 1을 더하는 것을 잊지 마세요.</div>
-                        </div>
-                    `;
-                    tip = '세로셈으로 차근차근 계산하면 실수를 줄일 수 있습니다.';
-                    break;
-                case '뺄셈':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">두 수의 뺄셈을 정확하게 계산합니다.</div>
-                            <div class="explanation-step">받아내림이 필요한 경우, 윗자리에서 10을 빌려오는 것을 잊지 마세요.</div>
-                        </div>
-                    `;
-                    tip = '뺄셈은 덧셈으로 검산해보세요.';
-                    break;
-                case '곱셈':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">구구단을 이용하여 두 수를 곱합니다.</div>
-                            <div class="explanation-step">받아올림을 꼼꼼하게 더해주는 것이 중요합니다.</div>
-                        </div>
-                    `;
-                    tip = '구구단을 확실하게 외우는 것이 기본입니다.';
-                    break;
-                case '나눗셈':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">나누는 수에 맞춰 곱셈을 반복하여 몫을 찾습니다.</div>
-                            <div class="explanation-step">나누어 떨어지지 않는 경우, 나머지를 확인합니다.</div>
-                        </div>
-                    `;
-                    tip = '곱셈으로 나눗셈을 검산해보세요.';
-                    break;
-                case '혼합':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">덧셈, 뺄셈, 곱셈, 나눗셈의 순서를 지켜 계산합니다.</div>
-                            <div class="explanation-step">괄호가 있다면 괄호 안을 먼저 계산합니다.</div>
-                        </div>
-                    `;
-                    tip = '연산 순서를 잊지 마세요. 곱셈, 나눗셈을 먼저 하고 덧셈, 뺄셈을 나중에 합니다.';
-                    break;
-                case '소인수분해':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">자연수를 소수인 인수로만 나누어 나타내는 과정입니다.</div>
-                            <div class="explanation-step">가장 작은 소수인 2부터 나누어 보세요.</div>
-                        </div>
-                    `;
-                    tip = '소인수분해는 약수와 배수를 구하는 데 유용합니다.';
-                    break;
-                case '정수와유리수':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">정수의 덧셈과 뺄셈 규칙을 이용합니다.</div>
-                            <div class="explanation-step">같은 부호끼리는 더하고 부호를 그대로, 다른 부호끼리는 절댓값이 큰 수에서 작은 수를 빼고 절댓값이 큰 수의 부호를 따릅니다.</div>
-                            <div class="explanation-step">곱셈과 나눗셈은 부호 규칙에 따라 계산합니다.</div>
-                        </div>
-                    `;
-                    tip = '수직선을 이용해 부호가 다른 정수의 덧셈, 뺄셈을 이해할 수 있습니다.';
-                    break;
-                case '일차방정식':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">미지수 x의 값을 찾기 위해 등식의 성질을 이용합니다.</div>
-                            <div class="explanation-step">양변에 같은 수를 더하거나, 빼거나, 곱하거나, 0이 아닌 같은 수로 나누어도 등식은 성립합니다.</div>
-                            <div class="explanation-step">이항(等式의 양변에 같은 수를 더하여 항을 옮기는 것)을 이용하여 미지수 x만 남도록 식을 정리합니다.</div>
-                        </div>
-                    `;
-                    tip = '이항할 때 항의 부호가 바뀐다는 점을 기억하세요.';
-                    break;
-                case '좌표평면':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">좌표평면의 x축과 y축을 이해하고 점의 좌표를 정확하게 읽습니다.</div>
-                            <div class="explanation-step">좌표는 (x, y) 순서로 나타냅니다.</div>
-                        </div>
-                    `;
-                    tip = 'x좌표가 0이면 y축 위에, y좌표가 0이면 x축 위에 있는 점입니다.';
-                    break;
-                case '비례':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">정비례는 x가 2배, 3배, ...가 될 때 y도 2배, 3배, ...가 되는 관계입니다. (y = ax)</div>
-                            <div class="explanation-step">반비례는 x가 2배, 3배, ...가 될 때 y는 1/2배, 1/3배, ...가 되는 관계입니다. (y = a/x)</div>
-                        </div>
-                    `;
-                    tip = '정비례와 반비례 그래프의 모양을 기억하세요.';
-                    break;
-                case '기본도형':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">점, 선, 면의 개념을 정확히 이해합니다.</div>
-                            <div class="explanation-step">교점과 교선, 평면과 직선의 위치 관계 등을 복습합니다.</div>
-                        </div>
-                    `;
-                    tip = '도형의 기본 개념은 모든 기하학의 기초입니다.';
-                    break;
-                case '다각형':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">다각형의 내각과 외각, 대각선의 개수 공식을 적용합니다.</div>
-                            <div class="explanation-step">N각형의 내각의 합은 180° × (N-2), 대각선의 개수는 N × (N-3) / 2 입니다.</div>
-                        </div>
-                    `;
-                    tip = '정다각형의 한 내각의 크기는 (N-2)×180°/N 입니다.';
-                    break;
-                case '원과부채꼴':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">원주율 π를 사용하여 원의 둘레와 넓이, 부채꼴의 호의 길이와 넓이를 계산합니다.</div>
-                            <div class="explanation-step">호의 길이 L = 2πr × (중심각/360°), 부채꼴의 넓이 S = πr² × (중심각/360°) = 1/2rl 입니다.</div>
-                        </div>
-                    `;
-                    tip = '공식을 정확히 암기하고 적용하는 연습이 중요합니다.';
-                    break;
-                case '입체도형':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">입체도형의 부피와 겉넓이 공식을 적용합니다.</div>
-                            <div class="explanation-step">각기둥, 원기둥, 각뿔, 원뿔, 구의 부피와 겉넓이 공식을 복습합니다.</div>
-                        </div>
-                    `;
-                    tip = '부피는 밑넓이 × 높이, 겉넓이는 전개도를 그려서 계산하면 좋습니다.';
-                    break;
-                case '회전체':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">평면도형을 직선을 축으로 회전시켰을 때 생기는 입체도형을 이해합니다.</div>
-                            <div class="explanation-step">회전축에 수직인 평면으로 자른 단면은 항상 원입니다.</div>
-                        </div>
-                    `;
-                    tip = '직사각형은 원기둥, 직각삼각형은 원뿔, 반원은 구를 만듭니다.';
-                    break;
-                case '통계':
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">자료를 정리하고 해석하는 방법을 배웁니다.</div>
-                            <div class="explanation-step">도수분포표, 히스토그램, 도수분포다각형의 특징을 복습합니다.</div>
-                        </div>
-                    `;
-                    tip = '통계 문제에서는 데이터를 정확히 읽고 계산하는 것이 중요합니다.';
-                    break;
-                
-                default:
-                    explanation = `
-                        <div class="explanation-content">
-                            <div class="explanation-step">문제를 다시 한 번 차근차근 읽어보세요.</div>
-                            <div class="explanation-step">계산 과정을 단계별로 확인해보세요.</div>
-                            <div class="explanation-step">비슷한 문제를 더 많이 연습해보세요.</div>
-                        </div>
-                    `;
-                    tip = '기본 개념을 다시 정리하고 연습 문제를 많이 풀어보세요.';
-            }
-            
-            return explanation + `<div class="tip-box">${tip}</div>`;
-        }
-
+        // 기록 보기
         function showRecords() {
             showSection('recordsView');
             
@@ -1325,6 +1582,53 @@
                     날짜: ${record.date}
                 </div>
             `).join('');
+        }
+        
+        // 유틸리티 함수
+        function getPrimeFactors(n) {
+            const factors = [];
+            let divisor = 2;
+            while (n >= 2) {
+                if (n % divisor === 0) {
+                    factors.push(divisor);
+                    n = n / divisor;
+                } else {
+                    divisor++;
+                }
+            }
+            return factors;
+        }
+
+        function getDivisorsCount(n) {
+            const factors = {};
+            let divisor = 2;
+            let temp = n;
+            while (temp >= 2) {
+                if (temp % divisor === 0) {
+                    factors[divisor] = (factors[divisor] || 0) + 1;
+                    temp /= divisor;
+                } else {
+                    divisor++;
+                }
+            }
+            let count = 1;
+            for (let prime in factors) {
+                count *= (factors[prime] + 1);
+            }
+            return count;
+        }
+        
+        function getGCD(a, b) {
+            while (b !== 0) {
+                const temp = b;
+                b = a % b;
+                a = temp;
+            }
+            return a;
+        }
+        
+        function getLCM(a, b) {
+            return (a * b) / getGCD(a, b);
         }
 
         // 초기화
